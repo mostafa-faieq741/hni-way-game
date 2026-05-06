@@ -80,26 +80,35 @@ export default function ReadyToStartScreen({ onFinish }) {
             ))}
           </div>
 
-          {/* Future placeholder note */}
+          {/* Setup summary strip */}
           <div
             style={{
               background: 'var(--c-bg)',
-              border: '1px dashed var(--c-border-dk)',
+              border: '1px solid var(--c-border)',
               borderRadius: 'var(--r-lg)',
               padding: '16px 24px',
               width: '100%',
-              textAlign: 'center',
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 16,
+              justifyContent: 'center',
             }}
           >
-            <p
-              style={{
-                fontSize: 13,
-                color: 'var(--c-text-muted)',
-                fontStyle: 'italic',
-              }}
-            >
-              🎮 Game simulation screens will be connected here in the next phase.
-            </p>
+            {[
+              { label: 'Starting Cash', value: '$100,000' },
+              { label: 'Starting Hires', value: '1 L&D + 1 Sales' },
+              { label: 'Quarters', value: '20 total' },
+              { label: 'Win Condition', value: 'Rep > 100' },
+            ].map((item) => (
+              <div key={item.label} style={{ textAlign: 'center' }}>
+                <div style={{ fontFamily: 'var(--f-heading)', fontWeight: 800, fontSize: 16, color: 'var(--c-primary)' }}>
+                  {item.value}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--c-text-muted)', fontFamily: 'var(--f-heading)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>
+                  {item.label}
+                </div>
+              </div>
+            ))}
           </div>
 
           {/* CTA */}
@@ -108,7 +117,7 @@ export default function ReadyToStartScreen({ onFinish }) {
             size="lg"
             onClick={onFinish}
           >
-            Finish
+            Continue to Player Setup →
           </Button>
         </div>
       </div>

@@ -1,38 +1,28 @@
 /**
  * apiClient.js
- * ─────────────────────────────────────────────────────────────────────────────
- * Thin HTTP client for communicating with the game's backend API routes.
- * All sensitive work (Google Sheets, TalentLMS API) happens server-side.
- * The frontend only sends/receives plain JSON through these routes.
+ * Thin client for the game backend API.
  *
- * Backend routes (Vercel serverless functions):
- *   POST  /api/start-game      – identify player, load or create game state
- *   GET   /api/load-progress   – load latest saved state for a player
- *   POST  /api/save-progress   – persist current game state
- *   POST  /api/log-event       – record an auditable player action
+ * IS_MOCK_MODE is hardcoded to true for the current prototype.
+ * All calls route through mockApiService.js (in-memory, no network).
  *
- * Dev mode (VITE_DEV_MOCK_SCORM=true):
- *   All calls are routed through mockApiService.js (in-memory, no network).
- *   This lets the entire player-setup and game flow work without a backend.
- * ─────────────────────────────────────────────────────────────────────────────
+ * TODO: When real backend is connected:
+ *   1. Set IS_MOCK_MODE = false (or gate on VITE_USE_REAL_API env var).
+ *   2. Ensure Vercel serverless functions exist at:
+ *      POST /api/start-game
+ *      GET  /api/load-progress
+ *      POST /api/save-progress
+ *      POST /api/log-event
+ *   3. Connect Google Sheets credentials in Vercel env vars.
  */
 
 import * as MockApi from './mockApiService.js'
 
-/**
- * True when running in dev/mock mode.
- * Controlled by VITE_DEV_MOCK_SCORM in .env.development.
- */
-const IS_MOCK_MODE = import.meta.env.VITE_DEV_MOCK_SCORM === 'true'
+// TODO: Set to false and use env var when real backend is connected.
+// const IS_MOCK_MODE = import.meta.env.VITE_USE_REAL_API !== 'true'
+const IS_MOCK_MODE = true
 
-const BASE_URL = '' // same origin; works for Vercel, Netlify, local dev proxy
+const BASE_URL = ''
 
-/**
- * Internal fetch wrapper with JSON handling and error normalisation.
- * @param {string} path
- * @param {RequestInit} [options]
- * @returns {Promise<any>}
- */
 async function request(path, options = {}) {
   const res = await fetch(BASE_URL + path, {
     headers: { 'Content-Type': 'application/json', ...options.headers },
@@ -54,16 +44,6 @@ async function request(path, options = {}) {
   return body
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Public API
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Identify the player and return their game state (new or resumed).
- *
- * @param {{ learnerId: string, learnerName: string }} identity
- * @returns {Promise<{ player: object, gameState: object, isNewPlayer: boolean }>}
- */
 export function startGame(identity) {
   if (IS_MOCK_MODE) return MockApi.startGame(identity)
   return request('/api/start-game', {
@@ -72,24 +52,11 @@ export function startGame(identity) {
   })
 }
 
-/**
- * Load the latest saved game state for a player.
- *
- * @param {string} playerId
- * @returns {Promise<{ gameState: object | null }>}
- */
 export function loadProgress(playerId) {
   if (IS_MOCK_MODE) return MockApi.loadProgress(playerId)
   return request(`/api/load-progress?playerId=${encodeURIComponent(playerId)}`)
 }
 
-/**
- * Persist the player's current game state.
- *
- * @param {string} playerId
- * @param {object} gameState  – current_screen, current_quarter, cash, etc.
- * @returns {Promise<{ success: boolean }>}
- */
 export function saveProgress(playerId, gameState) {
   if (IS_MOCK_MODE) return MockApi.saveProgress(playerId, gameState)
   return request('/api/save-progress', {
@@ -98,13 +65,6 @@ export function saveProgress(playerId, gameState) {
   })
 }
 
-/**
- * Log an auditable player action.
- *
- * @param {string} playerId
- * @param {object} event  – action_type, action_payload, screen, quarter, etc.
- * @returns {Promise<{ success: boolean }>}
- */
 export function logEvent(playerId, event) {
   if (IS_MOCK_MODE) return MockApi.logEvent(playerId, event)
   return request('/api/log-event', {
