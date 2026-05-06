@@ -4,19 +4,23 @@
  * Handles player identity and game-state initialisation before the actual
  * game simulation begins.
  *
- * Identity resolution order:
- *   1. Wait for SCORM postMessage from the LMS wrapper (production path).
- *   2. In dev mode (VITE_DEV_MOCK_SCORM=true), resolve immediately with mock data.
- *   3. If SCORM message doesn't arrive within the timeout, show a manual
- *      fallback form asking for TalentLMS email or username.
- *
- * After identity is resolved:
- *   • Calls the backend POST /api/start-game to find or create the player.
- *   • Shows "Welcome back" (saved state found) or "New game" message.
- *   • "Start / Resume Game" button advances to the game proper.
+ * Phase flow:
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │ DEV MODE (VITE_DEV_MOCK_SCORM=true)                                      │
+ * │   mount → 'mock-picker'                                                  │
+ * │     user picks a mock identity and clicks Simulate                       │
+ * │     → 'identifying' → callBackend() → 'ready'                            │
+ * │                                                                          │
+ * │ PRODUCTION                                                               │
+ * │   mount → 'waiting'                                                      │
+ * │     SCORM postMessage arrives  → 'identifying' → callBackend() → 'ready' │
+ * │     SCORM timeout              → 'manual'                                │
+ * │       user submits manual form → 'identifying' → callBackend() → 'ready' │
+ * └──────────────────────────────────────────────────────────────────────────┘
  *
  * @prop {function} onGameReady – called when the player is identified and
- *                                game state is loaded; receives { player, gameState, isNewPlayer }
+ *                                game state is loaded; receives
+ *                                { player, gameState, isNewPlayer }
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -31,39 +35,90 @@ import { startGame } from '../services/apiClient.js'
 import { initGameState } from '../services/gameStateService.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Mock identity catalogue (dev mode only)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The four mock identities available in the dev picker.
+ * learnerId must match the seeds in mockPlayerService.js / mockGameStateService.js.
+ */
+const MOCK_IDENTITIES = [
+  {
+    learnerId:   'new-learner-001',
+    learnerName: 'New Learner',
+    label:       'New Learner',
+    tag:         'new',
+    desc:        'No saved progress — starts a fresh game',
+  },
+  {
+    learnerId:   'returning-001',
+    learnerName: 'Alex Chen',
+    label:       'Alex Chen',
+    tag:         'Q3',
+    desc:        'Returning · Q3 of 20 · Early game · $85 k cash',
+  },
+  {
+    learnerId:   'returning-002',
+    learnerName: 'Jordan Kim',
+    label:       'Jordan Kim',
+    tag:         'Q10',
+    desc:        'Returning · Q10 of 20 · Mid game · $120 k cash',
+  },
+  {
+    learnerId:   'returning-003',
+    learnerName: 'Sam Rivera',
+    label:       'Sam Rivera',
+    tag:         'Q18 ⭐',
+    desc:        'Returning · Q18 of 20 · Late game · Leaderboard qualified',
+  },
+]
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Component
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function PlayerSetupScreen({ onGameReady }) {
-  /** Phase of the setup flow */
-  const [phase, setPhase] = useState('waiting') // 'waiting' | 'manual' | 'identifying' | 'ready' | 'error'
+  /**
+   * Phase of the setup flow.
+   * 'mock-picker' | 'waiting' | 'manual' | 'identifying' | 'ready' | 'error'
+   */
+  const [phase, setPhase] = useState('waiting')
 
-  /** Learner identity (from SCORM or manual entry) */
-  const [identity, setIdentity]       = useState(null)  // { learnerId, learnerName }
+  /** Learner identity resolved from SCORM, manual form, or mock picker */
+  const [identity, setIdentity]     = useState(null)
 
-  /** Game start result from backend */
-  const [gameResult, setGameResult]   = useState(null)  // { player, gameState, isNewPlayer }
+  /** Game start result from backend (or mock) */
+  const [gameResult, setGameResult] = useState(null)
 
-  /** Manual form fields */
+  /** Manual fallback form input */
   const [manualInput, setManualInput] = useState('')
 
-  /** Error message */
-  const [errorMsg, setErrorMsg]       = useState('')
+  /** Selected mock identity learnerId (dev picker) */
+  const [selectedMockId, setSelectedMockId] = useState(MOCK_IDENTITIES[0].learnerId)
 
-  // ─── Step 1: try to receive SCORM identity on mount ───────────────────────
+  /** Error message */
+  const [errorMsg, setErrorMsg] = useState('')
+
+  // ── Step 1: on mount, determine entry point ─────────────────────────────────
   useEffect(() => {
     let cancelled = false
 
+    if (isMockScormMode) {
+      // Dev mode: show the mock identity picker instead of auto-resolving
+      setPhase('mock-picker')
+      return
+    }
+
+    // Production: wait for SCORM postMessage
+    setPhase('waiting')
     receiveScormLearnerIdentity({ timeoutMs: 8000 })
       .then((id) => {
         if (cancelled) return
         setIdentity(id)
-        setPhase('identifying')
-        return callBackend(id)
+        callBackend(id)
       })
       .catch((err) => {
         if (cancelled) return
-        // Timeout or no SCORM wrapper – fall back to manual entry
         console.warn('[PlayerSetup] SCORM identity not received:', err.message)
         setPhase('manual')
       })
@@ -72,17 +127,14 @@ export default function PlayerSetupScreen({ onGameReady }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // ─── Step 2: call the backend to load or create the player ────────────────
+  // ── Step 2: call mock/real backend to load or create player ────────────────
   const callBackend = useCallback(async (id) => {
     setPhase('identifying')
     setErrorMsg('')
     try {
-      // TODO: replace mock with real call when backend is wired:
-      //   const result = await startGame(id)
-      // Mock result for development:
       const result = await startGame(id)
 
-      // Initialise frontend game state service
+      // Initialise the frontend game state service with data from the backend
       initGameState({
         playerId:                result.gameState.player_id,
         currentScreen:           result.gameState.current_screen,
@@ -108,21 +160,26 @@ export default function PlayerSetupScreen({ onGameReady }) {
     }
   }, [])
 
-  // ─── Manual form submit ───────────────────────────────────────────────────
-  const handleManualSubmit = (e) => {
-    e.preventDefault()
-    const trimmed = manualInput.trim()
-    if (!trimmed) return
-
-    const id = {
-      learnerId:   trimmed,
-      learnerName: trimmed,
-    }
+  // ── Mock picker: Simulate button clicked ───────────────────────────────────
+  const handleMockSimulate = () => {
+    const mockId = MOCK_IDENTITIES.find((m) => m.learnerId === selectedMockId)
+    if (!mockId) return
+    const id = { learnerId: mockId.learnerId, learnerName: mockId.learnerName }
     setIdentity(id)
     callBackend(id)
   }
 
-  // ─── "Start / Resume Game" click ──────────────────────────────────────────
+  // ── Manual form submit ─────────────────────────────────────────────────────
+  const handleManualSubmit = (e) => {
+    e.preventDefault()
+    const trimmed = manualInput.trim()
+    if (!trimmed) return
+    const id = { learnerId: trimmed, learnerName: trimmed }
+    setIdentity(id)
+    callBackend(id)
+  }
+
+  // ── "Start / Resume Game" clicked ─────────────────────────────────────────
   const handleStartGame = () => {
     if (gameResult && onGameReady) {
       onGameReady(gameResult)
@@ -136,10 +193,10 @@ export default function PlayerSetupScreen({ onGameReady }) {
     <main className="app-main">
       <div className="player-setup-screen screen" style={styles.screen}>
 
-        {/* ── Dev banner ── */}
+        {/* ── Dev banner (shown in mock mode for all phases) ── */}
         {isMockScormMode && (
           <div style={styles.devBanner}>
-            🛠 Dev Mode — SCORM identity is simulated (mock data)
+            🛠 Dev Mode — SCORM &amp; API are simulated (no backend required)
           </div>
         )}
 
@@ -147,7 +204,57 @@ export default function PlayerSetupScreen({ onGameReady }) {
         <div style={styles.card}>
           <HNILogo height={32} style={{ margin: '0 auto 20px' }} />
 
-          {/* ── WAITING for SCORM ── */}
+          {/* ── MOCK PICKER (dev mode entry point) ── */}
+          {phase === 'mock-picker' && (
+            <div>
+              <h2 style={styles.title}>Simulate Player Identity</h2>
+              <p style={styles.subtext}>
+                Choose a mock learner to test the setup flow. New Learner
+                starts fresh; the others resume from seeded game states.
+              </p>
+
+              <div style={styles.pickerList}>
+                {MOCK_IDENTITIES.map((m) => (
+                  <label
+                    key={m.learnerId}
+                    style={{
+                      ...styles.pickerOption,
+                      ...(selectedMockId === m.learnerId
+                        ? styles.pickerOptionSelected
+                        : {}),
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="mock-identity"
+                      value={m.learnerId}
+                      checked={selectedMockId === m.learnerId}
+                      onChange={() => setSelectedMockId(m.learnerId)}
+                      style={{ marginRight: 10, accentColor: 'var(--c-primary)', flexShrink: 0 }}
+                    />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={styles.pickerLabel}>
+                        {m.label}
+                        <span style={styles.pickerTag}>{m.tag}</span>
+                      </div>
+                      <div style={styles.pickerDesc}>{m.desc}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+
+              <Button
+                variant="primary"
+                size="md"
+                onClick={handleMockSimulate}
+                style={{ width: '100%', marginTop: 8 }}
+              >
+                Simulate →
+              </Button>
+            </div>
+          )}
+
+          {/* ── WAITING for SCORM postMessage ── */}
           {phase === 'waiting' && (
             <div style={styles.center}>
               <Spinner />
@@ -198,7 +305,7 @@ export default function PlayerSetupScreen({ onGameReady }) {
               {/* Status icon */}
               <div style={styles.iconCircle}>
                 {gameResult.isNewPlayer ? (
-                  // Star icon for new players
+                  // Star: new player
                   <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
                     <polygon
                       points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"
@@ -206,7 +313,7 @@ export default function PlayerSetupScreen({ onGameReady }) {
                     />
                   </svg>
                 ) : (
-                  // Checkmark for returning players
+                  // Checkmark: returning player
                   <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
                     <polyline
                       points="20 6 9 17 4 12"
@@ -226,7 +333,7 @@ export default function PlayerSetupScreen({ onGameReady }) {
               <p style={styles.subtext}>
                 {gameResult.isNewPlayer
                   ? 'A new game will be started for you.'
-                  : 'We found your saved progress. You\'ll resume where you left off.'}
+                  : "We found your saved progress. You'll resume where you left off."}
               </p>
 
               {/* Progress badge for returning players */}
@@ -253,6 +360,20 @@ export default function PlayerSetupScreen({ onGameReady }) {
               >
                 {gameResult.isNewPlayer ? 'Start Game' : 'Resume Game'}
               </Button>
+
+              {/* Dev: back to picker */}
+              {isMockScormMode && (
+                <button
+                  onClick={() => {
+                    setPhase('mock-picker')
+                    setGameResult(null)
+                    setIdentity(null)
+                  }}
+                  style={styles.devBackLink}
+                >
+                  ← Pick a different identity
+                </button>
+              )}
             </div>
           )}
 
@@ -270,7 +391,9 @@ export default function PlayerSetupScreen({ onGameReady }) {
               <Button
                 variant="primary"
                 size="md"
-                onClick={() => identity ? callBackend(identity) : setPhase('manual')}
+                onClick={() =>
+                  identity ? callBackend(identity) : setPhase(isMockScormMode ? 'mock-picker' : 'manual')
+                }
               >
                 Try Again
               </Button>
@@ -295,7 +418,7 @@ function Spinner() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Inline styles (mirrors the app's CSS variable system)
+// Inline styles
 // ─────────────────────────────────────────────────────────────────────────────
 
 const styles = {
@@ -309,17 +432,17 @@ const styles = {
     gap:            16,
   },
   devBanner: {
-    background:  '#fdf8e1',
-    border:      '1px solid #f1bd19',
+    background:   '#fdf8e1',
+    border:       '1px solid #f1bd19',
     borderRadius: 8,
-    padding:     '8px 16px',
-    fontSize:    12,
-    fontWeight:  600,
-    color:       '#7a5c00',
-    fontFamily:  'var(--f-heading)',
-    maxWidth:    480,
-    width:       '100%',
-    textAlign:   'center',
+    padding:      '8px 16px',
+    fontSize:     12,
+    fontWeight:   600,
+    color:        '#7a5c00',
+    fontFamily:   'var(--f-heading)',
+    maxWidth:     480,
+    width:        '100%',
+    textAlign:    'center',
   },
   card: {
     background:   'var(--c-surface)',
@@ -338,17 +461,19 @@ const styles = {
     gap:            16,
   },
   title: {
-    fontFamily:  'var(--f-heading)',
-    fontWeight:  700,
-    fontSize:    22,
-    color:       'var(--c-text)',
-    lineHeight:  1.3,
+    fontFamily: 'var(--f-heading)',
+    fontWeight: 700,
+    fontSize:   22,
+    color:      'var(--c-text)',
+    lineHeight: 1.3,
+    margin:     0,
   },
   subtext: {
     fontSize:   14,
     color:      'var(--c-text-muted)',
     lineHeight: 1.6,
     maxWidth:   340,
+    margin:     0,
   },
   form: {
     display:       'flex',
@@ -366,6 +491,7 @@ const styles = {
     background:   'var(--c-bg)',
     outline:      'none',
     width:        '100%',
+    boxSizing:    'border-box',
   },
   iconCircle: {
     width:          56,
@@ -393,14 +519,72 @@ const styles = {
     color:      'var(--c-text)',
     fontFamily: 'var(--f-heading)',
   },
+  // Mock picker styles
+  pickerList: {
+    display:       'flex',
+    flexDirection: 'column',
+    gap:           8,
+    marginTop:     20,
+    marginBottom:  20,
+  },
+  pickerOption: {
+    display:      'flex',
+    alignItems:   'flex-start',
+    gap:          0,
+    padding:      '12px 14px',
+    borderRadius: 'var(--r-md)',
+    border:       '1.5px solid var(--c-border)',
+    cursor:       'pointer',
+    background:   'var(--c-bg)',
+    transition:   'border-color 0.15s, background 0.15s',
+  },
+  pickerOptionSelected: {
+    borderColor: 'var(--c-primary)',
+    background:  'color-mix(in srgb, var(--c-primary) 6%, var(--c-bg))',
+  },
+  pickerLabel: {
+    display:    'flex',
+    alignItems: 'center',
+    gap:        8,
+    fontFamily: 'var(--f-heading)',
+    fontWeight: 700,
+    fontSize:   14,
+    color:      'var(--c-text)',
+  },
+  pickerTag: {
+    fontSize:     11,
+    fontWeight:   600,
+    fontFamily:   'var(--f-heading)',
+    color:        'var(--c-primary)',
+    background:   'color-mix(in srgb, var(--c-primary) 12%, transparent)',
+    padding:      '2px 7px',
+    borderRadius: 20,
+  },
+  pickerDesc: {
+    fontSize:   12,
+    color:      'var(--c-text-muted)',
+    marginTop:  3,
+    lineHeight: 1.4,
+  },
+  devBackLink: {
+    background:  'none',
+    border:      'none',
+    cursor:      'pointer',
+    fontSize:    12,
+    color:       'var(--c-text-muted)',
+    padding:     0,
+    marginTop:   4,
+    fontFamily:  'var(--f-body)',
+    textDecoration: 'underline',
+  },
 }
 
 const spinnerStyles = {
   wrapper: {
-    width:  48,
-    height: 48,
-    display: 'flex',
-    alignItems: 'center',
+    width:          48,
+    height:         48,
+    display:        'flex',
+    alignItems:     'center',
     justifyContent: 'center',
   },
   ring: {

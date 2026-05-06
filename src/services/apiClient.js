@@ -10,8 +10,20 @@
  *   GET   /api/load-progress   – load latest saved state for a player
  *   POST  /api/save-progress   – persist current game state
  *   POST  /api/log-event       – record an auditable player action
+ *
+ * Dev mode (VITE_DEV_MOCK_SCORM=true):
+ *   All calls are routed through mockApiService.js (in-memory, no network).
+ *   This lets the entire player-setup and game flow work without a backend.
  * ─────────────────────────────────────────────────────────────────────────────
  */
+
+import * as MockApi from './mockApiService.js'
+
+/**
+ * True when running in dev/mock mode.
+ * Controlled by VITE_DEV_MOCK_SCORM in .env.development.
+ */
+const IS_MOCK_MODE = import.meta.env.VITE_DEV_MOCK_SCORM === 'true'
 
 const BASE_URL = '' // same origin; works for Vercel, Netlify, local dev proxy
 
@@ -53,6 +65,7 @@ async function request(path, options = {}) {
  * @returns {Promise<{ player: object, gameState: object, isNewPlayer: boolean }>}
  */
 export function startGame(identity) {
+  if (IS_MOCK_MODE) return MockApi.startGame(identity)
   return request('/api/start-game', {
     method: 'POST',
     body: JSON.stringify(identity),
@@ -66,6 +79,7 @@ export function startGame(identity) {
  * @returns {Promise<{ gameState: object | null }>}
  */
 export function loadProgress(playerId) {
+  if (IS_MOCK_MODE) return MockApi.loadProgress(playerId)
   return request(`/api/load-progress?playerId=${encodeURIComponent(playerId)}`)
 }
 
@@ -77,6 +91,7 @@ export function loadProgress(playerId) {
  * @returns {Promise<{ success: boolean }>}
  */
 export function saveProgress(playerId, gameState) {
+  if (IS_MOCK_MODE) return MockApi.saveProgress(playerId, gameState)
   return request('/api/save-progress', {
     method: 'POST',
     body: JSON.stringify({ playerId, gameState }),
@@ -91,6 +106,7 @@ export function saveProgress(playerId, gameState) {
  * @returns {Promise<{ success: boolean }>}
  */
 export function logEvent(playerId, event) {
+  if (IS_MOCK_MODE) return MockApi.logEvent(playerId, event)
   return request('/api/log-event', {
     method: 'POST',
     body: JSON.stringify({ playerId, event }),
