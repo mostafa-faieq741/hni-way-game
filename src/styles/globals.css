@@ -1262,27 +1262,6 @@ a { color: inherit; text-decoration: none; }
   .byp-section__title {
     font-size: 19px;
   }
-
-  /* Game screens – collapse multi-column grids on mobile */
-  .home-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .dept-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .finance-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .dept-detail-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .summary-kpi-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (max-width: 480px) {
@@ -1865,3 +1844,26 @@ a { color: inherit; text-decoration: none; }
 .summary-kpi-card__value--negative { color: var(--c-error); }
 
 
+
+/* ── Game screen responsive overrides (must be LAST to win cascade) ── */
+@media (max-width: 768px) {
+  .home-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .finance-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dept-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dept-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
