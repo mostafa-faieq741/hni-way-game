@@ -44,9 +44,9 @@ export default function SmartPlayTip({ category }) {
 
         {/* OK button */}
         <button
-          className="btn btn--primary btn--md"
+          className="btn btn--primary"
           onClick={() => setVisible(false)}
-          style={{ minWidth: 120, marginTop: 8 }}
+          style={{ minWidth: 140, marginTop: 8, alignSelf: 'center' }}
           autoFocus
         >
           Got it
