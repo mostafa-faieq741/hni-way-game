@@ -1,63 +1,67 @@
 /**
  * GameContainer.jsx
  * Manages all in-game state and sub-navigation.
- * Renders the correct screen based on gameScreen state.
- * The bottom GameNav is shown for main screens (home, forecast, finance).
- *
- * Demo mode: persists game state to localStorage automatically so progress
- * survives page refreshes. Key: hni_demo_game_state
- * TODO: Replace localStorage persistence with real backend (Google Sheets) when ready.
  */
 
 import React, { useState, useCallback, useEffect, useRef } from 'react'
 import HNILogo from '../../components/HNILogo.jsx'
 import GameNav from '../../components/GameNav.jsx'
+import QuarterTimer from '../../components/QuarterTimer.jsx'
+import GlossaryModal from '../../components/GlossaryModal.jsx'
+import LeaderboardModal from '../../components/LeaderboardModal.jsx'
+import EventModal from '../../components/EventModal.jsx'
+import StatFloater from '../../components/StatFloater.jsx'
 
-import HomeScreen            from './HomeScreen.jsx'
-import ForecastScreen        from './ForecastScreen.jsx'
-import FinanceScreen         from './FinanceScreen.jsx'
+import HomeScreen             from './HomeScreen.jsx'
+import ForecastScreen         from './ForecastScreen.jsx'
+import FinanceScreen          from './FinanceScreen.jsx'
 import DepartmentDetailScreen from './DepartmentDetailScreen.jsx'
 import SalesRequestListScreen from './SalesRequestListScreen.jsx'
-import ProjectDetailScreen   from './ProjectDetailScreen.jsx'
-import YearSummaryScreen     from './YearSummaryScreen.jsx'
-import FinalReportScreen     from './FinalReportScreen.jsx'
+import ProjectDetailScreen    from './ProjectDetailScreen.jsx'
+import ActiveProjectsScreen   from './ActiveProjectsScreen.jsx'
+import YearSummaryScreen      from './YearSummaryScreen.jsx'
+import FinalReportScreen      from './FinalReportScreen.jsx'
 
 import { createDepartmentState } from '../../data/departments.js'
-import { GAME_CONFIG }           from '../../data/gameConfig.js'
-import { DEMO_SAVE_KEY }         from '../PlayerSetupScreen.jsx'
+import { GAME_CONFIG }            from '../../data/gameConfig.js'
+import { DEMO_SAVE_KEY }          from '../PlayerSetupScreen.jsx'
+import {
+  MAX_ACTIVE_PROJECTS,
+  makeActiveProject,
+  resolveProjectsForQuarter,
+  computeFixedExpenses,
+} from '../../data/projectLifecycle.js'
+import { pickEventForQuarter } from '../../data/events.js'
 
-// ── Main screens that show the bottom tab bar ─────────────────────────────────
 const MAIN_SCREENS = new Set(['home', 'forecast', 'finance'])
-
-// ── localStorage helpers ──────────────────────────────────────────────────────
 
 function saveToLocalStorage(state) {
   try {
-    // Save a serialisable snapshot (omit functions / circular refs)
     const snapshot = {
-      cash:                    state.cash,
-      reputation:              state.reputation,
-      netProfit:               state.netProfit,
-      totalRevenue:            state.totalRevenue,
-      totalCosts:              state.totalCosts,
-      overallQuarter:          state.overallQuarter,
-      currentYear:             state.currentYear,
-      yearQuarter:             state.yearQuarter,
-      departments:             state.departments,
-      activeProjects:          state.activeProjects,
-      acceptedCount:           state.acceptedCount,
-      rejectedCount:           state.rejectedCount,
-      completedProjects:       state.completedProjects,
+      cash: state.cash,
+      reputation: state.reputation,
+      netProfit: state.netProfit,
+      totalRevenue: state.totalRevenue,
+      totalCosts: state.totalCosts,
+      overallQuarter: state.overallQuarter,
+      currentYear: state.currentYear,
+      yearQuarter: state.yearQuarter,
+      departments: state.departments,
+      activeProjects: state.activeProjects,
+      acceptedCount: state.acceptedCount,
+      rejectedCount: state.rejectedCount,
+      rejectedIds: state.rejectedIds,
+      completedProjects: state.completedProjects,
       forecastPurchasedByYear: state.forecastPurchasedByYear,
-      quarterRevenue:          state.quarterRevenue,
-      quarterCOGS:             state.quarterCOGS,
-      yearSummaries:           state.yearSummaries,
-      playerId:                state.playerId,
-      playerName:              state.playerName,
+      yearSummaries: state.yearSummaries,
+      eventsTriggered: state.eventsTriggered,
+      lastResolution: state.lastResolution,
+      playerId: state.playerId,
+      playerName: state.playerName,
     }
     localStorage.setItem(DEMO_SAVE_KEY, JSON.stringify(snapshot))
   } catch (e) {
-    console.warn('[GameContainer] Could not save to localStorage:', e)
+    console.warn('[GameContainer] save failed:', e)
   }
 }
 
@@ -71,70 +75,82 @@ function loadFromLocalStorage() {
   }
 }
 
-// ── Initial game state ────────────────────────────────────────────────────────
-
 function buildInitialGs(setupResult) {
   const base = {
-    // Player
-    playerId:   setupResult?.player?.player_id   ?? 'demo-001',
+    playerId:   setupResult?.player?.player_id    ?? 'demo-001',
     playerName: setupResult?.player?.display_name ?? 'Player',
-
-    // Financials
     cash:         GAME_CONFIG.startingCash,
     reputation:   0,
     netProfit:    0,
     totalRevenue: 0,
     totalCosts:   0,
-
-    // Quarter / Year
-    overallQuarter: 1,   // 1-20
-    currentYear:    1,   // 1-5
-    yearQuarter:    1,   // 1-4
-
-    // Departments (mutable staffing state)
+    overallQuarter: 1,
+    currentYear:    1,
+    yearQuarter:    1,
     departments: createDepartmentState(),
-
-    // Projects
     activeProjects: [],
     acceptedCount:  0,
     rejectedCount:  0,
+    rejectedIds:   [],
     completedProjects: [],
-
-    // Forecast: keyed by year → boolean
     forecastPurchasedByYear: {},
-
-    // Quarter-level revenue/COGS (reset each quarter)
-    quarterRevenue: 0,
-    quarterCOGS:    0,
-
-    // Year history
-    yearSummaries: [],
+    eventsTriggered:        [],
+    yearSummaries:          [],
+    lastResolution:         null,
   }
-
-  // If this is a returning demo player, try to load from localStorage
   if (!setupResult?.isNewPlayer) {
     const saved = loadFromLocalStorage()
-    if (saved) {
-      console.info('[GameContainer] Restoring demo progress from localStorage.')
-      return { ...base, ...saved }
-    }
+    if (saved) return { ...base, ...saved }
   }
-
   return base
+}
+
+function patchDeptStaffing(prev, deptId, key, delta) {
+  return {
+    ...prev,
+    departments: prev.departments.map((d) => {
+      if (d.id !== deptId) return d
+      const updated = { ...d }
+      updated[key] = Math.max(0, (d[key] || 0) + delta)
+      return updated
+    }),
+  }
+}
+
+function transferStaff(prev, sourceId, targetId, key) {
+  return {
+    ...prev,
+    departments: prev.departments.map((d) => {
+      if (d.id === sourceId) {
+        const u = { ...d }
+        u[key] = Math.max(0, (d[key] || 0) - 1)
+        return u
+      }
+      if (d.id === targetId) {
+        const u = { ...d }
+        u[key] = (d[key] || 0) + 1
+        return u
+      }
+      return d
+    }),
+  }
 }
 
 export default function GameContainer({ gameSetupResult }) {
   const [gs, setGs] = useState(() => buildInitialGs(gameSetupResult))
 
-  // Sub-navigation
   const [gameScreen, setGameScreen] = useState('home')
-  const [selectedDept, setSelectedDept]       = useState(null)
+  const [selectedDept, setSelectedDept] = useState(null)
   const [selectedProject, setSelectedProject] = useState(null)
-  const [completedYear, setCompletedYear]     = useState(null)
+  const [selectedActiveProject, setSelectedActiveProject] = useState(null)
+  const [completedYear, setCompletedYear] = useState(null)
+  const [showGlossary, setShowGlossary] = useState(false)
+  const [showLeaderboard, setShowLeaderboard] = useState(false)
+  const [pendingEvent, setPendingEvent] = useState(null)
 
-  // Toast
-  const [toast, setToast]     = useState(null)
-  const toastTimer             = useRef(null)
+  const [toast, setToast] = useState(null)
+  const toastTimer = useRef(null)
+  const [floats, setFloats] = useState([])
 
   const showToast = useCallback((msg) => {
     setToast(msg)
@@ -142,127 +158,188 @@ export default function GameContainer({ gameSetupResult }) {
     toastTimer.current = setTimeout(() => setToast(null), 3000)
   }, [])
 
+  const pushFloat = useCallback((text, type = 'neutral') => {
+    const id = Date.now() + '-' + Math.random().toString(36).slice(2)
+    setFloats((arr) => [...arr, { id, text, type }])
+    setTimeout(() => setFloats((arr) => arr.filter((f) => f.id !== id)), 2200)
+  }, [])
+
   useEffect(() => () => clearTimeout(toastTimer.current), [])
-
-  // Auto-save to localStorage whenever gs changes (demo mode persistence)
-  // TODO: Replace with real backend save when Google Sheets integration is ready.
-  useEffect(() => {
-    saveToLocalStorage(gs)
-  }, [gs])
-
-  // ── State helpers ───────────────────────────────────────────────────────────
+  useEffect(() => { saveToLocalStorage(gs) }, [gs])
 
   const updateGs = useCallback((patch) => {
     setGs((prev) => ({ ...prev, ...patch }))
   }, [])
 
-  const updateDept = useCallback((deptId, patch) => {
-    setGs((prev) => ({
-      ...prev,
-      departments: prev.departments.map((d) =>
-        d.id === deptId ? { ...d, ...patch } : d
-      ),
-    }))
-  }, [])
-
-  // ── Navigation ──────────────────────────────────────────────────────────────
-
   const navigate = useCallback((screen, extra = {}) => {
     setGameScreen(screen)
-    if (extra.dept)    setSelectedDept(extra.dept)
-    if (extra.project) setSelectedProject(extra.project)
+    if (extra.dept)          setSelectedDept(extra.dept)
+    if (extra.project)       setSelectedProject(extra.project)
+    if (extra.activeProject) setSelectedActiveProject(extra.activeProject)
   }, [])
 
   const goHome = useCallback(() => setGameScreen('home'), [])
 
-  // ── Submit Quarter ──────────────────────────────────────────────────────────
-
   const handleSubmitQuarter = useCallback(() => {
     setGs((prev) => {
-      const fixedExpenses = prev.departments.reduce(
-        (sum, d) =>
-          sum +
-          d.specialists * GAME_CONFIG.specialistCostPerQuarter +
-          d.consultants  * GAME_CONFIG.consultantCostPerQuarter,
-        0
-      )
+      const fixedExpenses = computeFixedExpenses(prev.departments)
+      const r = resolveProjectsForQuarter(prev)
 
-      // Tick down active project durations
-      const updatedProjects = prev.activeProjects
-        .map((p) => ({ ...p, quartersLeft: p.quartersLeft - 1 }))
-        .filter((p) => p.quartersLeft > 0) // remove completed (simplified)
+      const newCash = prev.cash - fixedExpenses + r.revenueGained - r.extraCostsAdded
+      const newTotalRevenue = prev.totalRevenue + r.revenueGained
+      const newTotalCosts = prev.totalCosts + fixedExpenses + r.extraCostsAdded
+      const newReputation = Math.max(0, Math.min(GAME_CONFIG.maxReputation, prev.reputation + r.reputationDelta))
+      const newNetProfit = newTotalRevenue - newTotalCosts
 
-      const newTotalCosts = prev.totalCosts + fixedExpenses + prev.quarterCOGS
-      const newNetProfit  = prev.totalRevenue - newTotalCosts
-      const newOverall    = prev.overallQuarter + 1
-      const newYear       = Math.ceil(newOverall / 4)
-      const newYearQtr    = ((newOverall - 1) % 4) + 1
+      const newOverall = prev.overallQuarter + 1
+      const newYear = Math.ceil(newOverall / 4)
+      const newYearQtr = ((newOverall - 1) % 4) + 1
       const wasLastOfYear = prev.yearQuarter === 4
+      const gameOver = prev.overallQuarter >= GAME_CONFIG.totalQuarters
 
-      const yearSummary = wasLastOfYear
-        ? {
-            year:         prev.currentYear,
-            revenue:      prev.totalRevenue,
-            expenses:     newTotalCosts,
-            netProfit:    newNetProfit,
-            reputation:   prev.reputation,
-          }
-        : null
+      const yearSummary = wasLastOfYear ? {
+        year: prev.currentYear,
+        revenue: newTotalRevenue,
+        expenses: newTotalCosts,
+        netProfit: newNetProfit,
+        reputation: newReputation,
+      } : null
+
+      const resolution = {
+        fixedExpenses,
+        revenueGained: r.revenueGained,
+        extraCostsAdded: r.extraCostsAdded,
+        reputationDelta: r.reputationDelta,
+        deliveredCodes: r.completedThisQtr.map((p) => p.code),
+        overdueCodes: r.updatedProjects.filter((p) => p.status === 'overdue').map((p) => p.code),
+      }
+
+      if (fixedExpenses > 0)     pushFloat('-$' + fixedExpenses.toLocaleString() + ' fixed', 'negative')
+      if (r.revenueGained > 0)   pushFloat('+$' + r.revenueGained.toLocaleString() + ' revenue', 'positive')
+      if (r.extraCostsAdded > 0) pushFloat('-$' + r.extraCostsAdded.toLocaleString() + ' overdue', 'negative')
+      if (r.reputationDelta !== 0) {
+        const sign = r.reputationDelta > 0 ? '+' : ''
+        pushFloat(sign + r.reputationDelta + ' rep', r.reputationDelta > 0 ? 'positive' : 'negative')
+      }
 
       return {
         ...prev,
-        overallQuarter:   newOverall,
-        currentYear:      newYear,
-        yearQuarter:      newYearQtr,
-        cash:             prev.cash - fixedExpenses,
-        totalCosts:       newTotalCosts,
-        netProfit:        newNetProfit,
-        quarterRevenue:   0,
-        quarterCOGS:      0,
-        activeProjects:   updatedProjects,
-        yearSummaries:    yearSummary
-          ? [...prev.yearSummaries, yearSummary]
-          : prev.yearSummaries,
+        cash: newCash,
+        reputation: newReputation,
+        totalRevenue: newTotalRevenue,
+        totalCosts: newTotalCosts,
+        netProfit: newNetProfit,
+        activeProjects: r.updatedProjects,
+        completedProjects: [...prev.completedProjects, ...r.completedThisQtr],
+        overallQuarter: gameOver ? prev.overallQuarter : newOverall,
+        currentYear: gameOver ? prev.currentYear : newYear,
+        yearQuarter: gameOver ? prev.yearQuarter : newYearQtr,
+        yearSummaries: yearSummary ? [...prev.yearSummaries, yearSummary] : prev.yearSummaries,
+        lastResolution: resolution,
       }
     })
 
-    // Determine next screen after state update
     setGs((prev) => {
-      if (prev.overallQuarter > GAME_CONFIG.totalQuarters) {
+      if (prev.overallQuarter >= GAME_CONFIG.totalQuarters && prev.lastResolution) {
         setGameScreen('final-report')
       } else if (prev.yearQuarter === 1 && prev.currentYear > 1) {
         setCompletedYear(prev.currentYear - 1)
         setGameScreen('year-summary')
       } else {
         setGameScreen('home')
-        showToast(`Quarter submitted. Now in Q${prev.yearQuarter}, Year ${prev.currentYear}.`)
+        showToast('Quarter resolved. Now in Q' + prev.yearQuarter + ', Year ' + prev.currentYear + '.')
+        const ev = pickEventForQuarter(prev)
+        if (ev) setPendingEvent(ev)
       }
-      return prev // no further mutation
+      return prev
     })
-  }, [showToast])
+  }, [showToast, pushFloat])
 
-  // ── Accept / Reject project ─────────────────────────────────────────────────
+  const handleAcceptProject = useCallback((template) => {
+    setGs((prev) => {
+      if (prev.activeProjects.length >= MAX_ACTIVE_PROJECTS) {
+        showToast('You already have ' + MAX_ACTIVE_PROJECTS + ' active projects. Deliver some first.')
+        return prev
+      }
+      if (prev.activeProjects.some((p) => p.id === template.id)) {
+        showToast('This project is already active.')
+        return prev
+      }
+      if (prev.cash < template.cost) {
+        showToast('Need $' + template.cost.toLocaleString() + ' cash to accept this project.')
+        return prev
+      }
+      const active = makeActiveProject(template, prev.overallQuarter)
+      pushFloat('-$' + template.cost.toLocaleString() + ' cash', 'negative')
+      pushFloat('+1 active project', 'neutral')
+      return {
+        ...prev,
+        cash: prev.cash - template.cost,
+        totalCosts: prev.totalCosts + template.cost,
+        activeProjects: [...prev.activeProjects, active],
+        acceptedCount: prev.acceptedCount + 1,
+      }
+    })
+  }, [showToast, pushFloat])
 
-  const handleAcceptProject = useCallback((activeProj) => {
-    setGs((prev) => ({
-      ...prev,
-      activeProjects: [...prev.activeProjects, activeProj],
-      acceptedCount:  prev.acceptedCount + 1,
-    }))
+  const handleRejectProject = useCallback((template) => {
+    setGs((prev) => {
+      const ids = prev.rejectedIds || []
+      if (ids.includes(template.id)) return prev
+      return {
+        ...prev,
+        rejectedCount: prev.rejectedCount + 1,
+        rejectedIds: [...ids, template.id],
+      }
+    })
   }, [])
 
-  const handleRejectProject = useCallback(() => {
-    setGs((prev) => ({ ...prev, rejectedCount: prev.rejectedCount + 1 }))
-  }, [])
+  const handleHire = useCallback((deptId, type) => {
+    const key = type === 'specialist' ? 'specialists' : 'consultants'
+    const cost = type === 'specialist' ? GAME_CONFIG.specialistCostPerQuarter : GAME_CONFIG.consultantCostPerQuarter
+    pushFloat('+1 employee', 'positive')
+    pushFloat('+$' + cost.toLocaleString() + ' fixed/qtr', 'negative')
+    setGs((prev) => patchDeptStaffing(prev, deptId, key, 1))
+  }, [pushFloat])
 
-  // ── Year Summary continue ───────────────────────────────────────────────────
+  const handleFire = useCallback((deptId, type) => {
+    setGs((prev) => {
+      const dept = prev.departments.find((d) => d.id === deptId)
+      if (!dept) return prev
+      const key = type === 'specialist' ? 'specialists' : 'consultants'
+      if ((dept[key] || 0) <= 0) {
+        showToast('No ' + type + 's to fire in this department.')
+        return prev
+      }
+      pushFloat('-1 employee', 'negative')
+      pushFloat('-1 reputation', 'negative')
+      const next = patchDeptStaffing(prev, deptId, key, -1)
+      return { ...next, reputation: Math.max(0, prev.reputation - 1) }
+    })
+  }, [pushFloat, showToast])
+
+  const handleTransfer = useCallback((sourceId, type, targetId) => {
+    if (!sourceId || !targetId || sourceId === targetId) {
+      showToast('Pick a destination department.')
+      return
+    }
+    const key = type === 'specialist' ? 'specialists' : 'consultants'
+    setGs((prev) => {
+      const source = prev.departments.find((d) => d.id === sourceId)
+      if (!source || (source[key] || 0) <= 0) {
+        showToast('No ' + type + 's to transfer.')
+        return prev
+      }
+      pushFloat('Transferred ' + type, 'neutral')
+      return transferStaff(prev, sourceId, targetId, key)
+    })
+    showToast('Employee transferred from ' + sourceId + ' to ' + targetId + '.')
+  }, [pushFloat, showToast])
 
   const handleContinueYear = useCallback(() => {
     setGameScreen('home')
-    showToast('Welcome to the new year! Check the Forecast for this year\'s signals.')
-  }, [showToast])
-
-  // ── Restart (Final Report) ──────────────────────────────────────────────────
+    showToast('Welcome to Year ' + gs.currentYear + '. Check the Forecast for this year.')
+  }, [showToast, gs.currentYear])
 
   const handleRestart = useCallback(() => {
     try { localStorage.removeItem(DEMO_SAVE_KEY) } catch {}
@@ -270,57 +347,89 @@ export default function GameContainer({ gameSetupResult }) {
     setGameScreen('home')
     setSelectedDept(null)
     setSelectedProject(null)
+    setSelectedActiveProject(null)
     setCompletedYear(null)
     showToast('Demo restarted. Good luck!')
-  }, [gameSetupResult])
+  }, [gameSetupResult, showToast])
 
-  // ── Render ──────────────────────────────────────────────────────────────────
+  const handleEventResolve = useCallback((option) => {
+    if (!pendingEvent) return
+    setGs((prev) => {
+      const eff = option.effect || {}
+      if (eff.cash) {
+        const sign = eff.cash > 0 ? '+' : '-'
+        pushFloat(sign + '$' + Math.abs(eff.cash).toLocaleString() + ' cash', eff.cash > 0 ? 'positive' : 'negative')
+      }
+      if (eff.reputation) {
+        const sign = eff.reputation > 0 ? '+' : ''
+        pushFloat(sign + eff.reputation + ' rep', eff.reputation > 0 ? 'positive' : 'negative')
+      }
+      const triggered = prev.eventsTriggered || []
+      return {
+        ...prev,
+        cash: prev.cash + (eff.cash || 0),
+        reputation: Math.max(0, Math.min(GAME_CONFIG.maxReputation, prev.reputation + (eff.reputation || 0))),
+        eventsTriggered: [...triggered, pendingEvent.id],
+      }
+    })
+    showToast(option.toast || 'Event resolved.')
+    setPendingEvent(null)
+  }, [pendingEvent, pushFloat, showToast])
 
   const showNav = MAIN_SCREENS.has(gameScreen)
+  const quarterKey = gs.currentYear + '-' + gs.yearQuarter
 
   return (
     <div className="game-shell">
-      {/* Top bar */}
       <div className="game-topbar">
         <div className="game-topbar__logo">
           <HNILogo height={28} />
         </div>
         <div className="game-topbar__badge">
-          Q{gs.yearQuarter} · Year {gs.currentYear}
+          Q{gs.yearQuarter} - Year {gs.currentYear}
         </div>
+        <QuarterTimer
+          quarterKey={quarterKey}
+          onExpire={handleSubmitQuarter}
+          paused={!!pendingEvent || gameScreen === 'year-summary' || gameScreen === 'final-report'}
+        />
         <div className="game-topbar__player">
-          {gs.playerName} · ${gs.cash.toLocaleString()} · Rep {gs.reputation}
+          {gs.playerName} - ${gs.cash.toLocaleString()} - Rep {gs.reputation}
         </div>
+        <button className="game-topbar__glossary" onClick={() => setShowLeaderboard(true)} title="Open Leaderboard">
+          Leaderboard
+        </button>
+        <button className="game-topbar__glossary" onClick={() => setShowGlossary(true)} title="Open Terms / Glossary">
+          Terms
+        </button>
       </div>
 
-      {/* Scrollable content */}
       <div className="game-content">
         {gameScreen === 'home' && (
-          <HomeScreen gs={gs} onNavigate={navigate} />
+          <HomeScreen
+            gs={gs}
+            onNavigate={navigate}
+            onHire={handleHire}
+            onShowToast={showToast}
+            onSubmitQuarter={handleSubmitQuarter}
+          />
         )}
 
         {gameScreen === 'forecast' && (
-          <ForecastScreen
-            gs={gs}
-            onUpdateGs={updateGs}
-            onShowToast={showToast}
-          />
+          <ForecastScreen gs={gs} onUpdateGs={updateGs} onShowToast={showToast} onPushFloat={pushFloat} />
         )}
 
         {gameScreen === 'finance' && (
-          <FinanceScreen
-            gs={gs}
-            onUpdateGs={updateGs}
-            onSubmitQuarter={handleSubmitQuarter}
-            onShowToast={showToast}
-          />
+          <FinanceScreen gs={gs} onSubmitQuarter={handleSubmitQuarter} onShowToast={showToast} />
         )}
 
         {gameScreen === 'dept-detail' && selectedDept && (
           <DepartmentDetailScreen
             dept={selectedDept}
             gs={gs}
-            onUpdateDept={updateDept}
+            onHire={handleHire}
+            onFire={handleFire}
+            onTransfer={handleTransfer}
             onGoBack={goHome}
             onShowToast={showToast}
           />
@@ -346,12 +455,29 @@ export default function GameContainer({ gameSetupResult }) {
           />
         )}
 
-        {gameScreen === 'year-summary' && (
-          <YearSummaryScreen
+        {gameScreen === 'active-projects' && (
+          <ActiveProjectsScreen
             gs={gs}
-            completedYear={completedYear}
-            onContinue={handleContinueYear}
+            onGoBack={goHome}
+            onOpenActive={(p) => navigate('active-project-detail', { activeProject: p })}
           />
+        )}
+
+        {gameScreen === 'active-project-detail' && selectedActiveProject && (
+          <ProjectDetailScreen
+            project={selectedActiveProject}
+            gs={gs}
+            isAlreadyActive
+            onGoBack={() => setGameScreen('active-projects')}
+            onGoToSalesRequests={() => setGameScreen('sales-requests')}
+            onAccept={() => {}}
+            onReject={() => {}}
+            onShowToast={showToast}
+          />
+        )}
+
+        {gameScreen === 'year-summary' && (
+          <YearSummaryScreen gs={gs} completedYear={completedYear} onContinue={handleContinueYear} />
         )}
 
         {gameScreen === 'final-report' && (
@@ -359,15 +485,29 @@ export default function GameContainer({ gameSetupResult }) {
         )}
       </div>
 
-      {/* Bottom tab nav — only on main screens */}
       {showNav && (
-        <GameNav
-          activeScreen={gameScreen}
-          onNavigate={(screen) => setGameScreen(screen)}
-        />
+        <GameNav activeScreen={gameScreen} onNavigate={(screen) => setGameScreen(screen)} />
       )}
 
-      {/* Toast feedback */}
+      <GlossaryModal open={showGlossary} onClose={() => setShowGlossary(false)} />
+
+      <LeaderboardModal
+        open={showLeaderboard}
+        onClose={() => setShowLeaderboard(false)}
+        currentPlayer={{
+          name: gs.playerName,
+          revenue: gs.totalRevenue,
+          netProfit: gs.netProfit,
+          reputation: gs.reputation,
+        }}
+      />
+
+      {pendingEvent && (
+        <EventModal event={pendingEvent} onResolve={handleEventResolve} />
+      )}
+
+      <StatFloater floats={floats} />
+
       {toast && <div className="game-toast">{toast}</div>}
     </div>
   )

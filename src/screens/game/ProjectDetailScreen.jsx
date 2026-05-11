@@ -1,104 +1,113 @@
-/**
- * ProjectDetailScreen.jsx
- * Full project brief: revenue, cost, requirements, accept / reject actions.
- */
-
 import React, { useState } from 'react'
 import { renderStars } from '../../data/projects.js'
-import { mergeDepartments } from '../../data/departments.js'
 import SmartPlayTip from '../../components/SmartPlayTip.jsx'
+import TutorialOverlay from '../../components/TutorialOverlay.jsx'
+import { MAX_ACTIVE_PROJECTS } from '../../data/projectLifecycle.js'
 
-export default function ProjectDetailScreen({ project: proj, gs, onGoBack, onGoToSalesRequests, onAccept, onReject, onShowToast }) {
-  const [confirmed, setConfirmed] = useState(null) // null | 'accepted' | 'rejected'
+export default function ProjectDetailScreen({
+  project: proj, gs, onGoBack, onGoToSalesRequests,
+  onAccept, onReject, onShowToast, isAlreadyActive = false,
+}) {
+  const [confirmed, setConfirmed] = useState(null)
 
-  const isAlreadyAccepted = gs.activeProjects.some((p) => p.id === proj.id)
-  const departments = mergeDepartments(gs.departments)
+  const isInActiveList = isAlreadyActive || gs.activeProjects.some((p) => p.id === proj.id)
+  const isOverdue = isAlreadyActive && proj.status === 'overdue'
 
-  // Check minimum reputation
-  const meetsReputation = gs.reputation >= proj.minReputation
-
-  // Check required departments
-  const missingDepts = proj.requiredDepartments.filter((deptId) => {
-    const d = departments.find((x) => x.id === deptId)
-    return !d || !d.isActive
-  })
-  const meetsDepts = missingDepts.length === 0
-
-  // Check Sales requirement
-  const salesDept = gs.departments.find((d) => d.id === 'sales') ?? { specialists: 0, consultants: 0 }
-  const salesReq = proj.salesRequirement
-  const meetsSales = salesReq.type === 'specialist'
-    ? salesDept.specialists >= salesReq.count
-    : salesDept.consultants >= salesReq.count
-  const hasWarning = !meetsReputation || !meetsDepts || !meetsSales
+  const meetsReputation = gs.reputation >= (proj.minReputation || 0)
+  const cantAfford = gs.cash < (proj.cost || 0)
+  const atCap = gs.activeProjects.length >= MAX_ACTIVE_PROJECTS
 
   const handleAccept = () => {
-    if (isAlreadyAccepted) { onShowToast('This project is already active.'); return }
-    const activeProj = {
-      ...proj,
-      quartersLeft: proj.durationQuarters,
-      startedOnQuarter: gs.overallQuarter,
+    if (isInActiveList) { onShowToast('This project is already active.'); return }
+    if (atCap) {
+      onShowToast('You already have ' + MAX_ACTIVE_PROJECTS + ' active projects. Deliver some first.')
+      return
     }
-    onAccept(activeProj)
+    if (cantAfford) {
+      onShowToast('Need $' + proj.cost.toLocaleString() + ' cash to accept this project.')
+      return
+    }
+    onAccept(proj)
     setConfirmed('accepted')
-    onShowToast(`✅ ${proj.code} accepted! It has been added to your active projects.`)
+    onShowToast?.(proj.code + ' accepted! Cost paid: $' + proj.cost.toLocaleString() + '.')
+    // Auto-return to the Sales Requests list after a short pause so the
+    // accepted brief no longer appears in the available pool.
+    setTimeout(() => onGoToSalesRequests?.(), 900)
   }
 
   const handleReject = () => {
     onReject(proj)
     setConfirmed('rejected')
-    onShowToast(`Project ${proj.code} rejected.`)
+    onShowToast?.('Project ' + proj.code + ' rejected.')
+    // After a short pause, go back to the list so the rejected brief is gone
+    setTimeout(() => onGoToSalesRequests?.(), 900)
   }
 
   return (
     <div>
-      {/* Navigation */}
+      <TutorialOverlay
+        screenId="project-detail"
+        title="Project Brief"
+        steps={[
+          'Read the client brief carefully - it tells you which departments you will need.',
+          'Accepting subtracts the project cost from your cash immediately.',
+          'Requirements are checked at the planned end. Missing them makes the project overdue (-1 reputation per quarter, +10% extra cost).',
+        ]}
+      />
+
       <div style={{ display: 'flex', gap: 'var(--sp-4)', marginBottom: 'var(--sp-5)', flexWrap: 'wrap' }}>
-        <button className="back-btn" onClick={onGoBack} style={{ marginBottom: 0 }}>
-          ← Back to Home
-        </button>
-        <button className="back-btn" onClick={onGoToSalesRequests} style={{ marginBottom: 0 }}>
-          ← Back to Sales Requests
-        </button>
+        <button className="back-btn" onClick={onGoBack} style={{ marginBottom: 0 }}>Back to Home</button>
+        {!isAlreadyActive && (
+          <button className="back-btn" onClick={onGoToSalesRequests} style={{ marginBottom: 0 }}>Back to Sales Requests</button>
+        )}
       </div>
 
-      {/* Confirmation banner */}
       {confirmed === 'accepted' && (
         <div style={{ background: 'var(--c-success-bg)', border: '1px solid #a7d8bc', borderRadius: 'var(--r-lg)', padding: '16px 20px', marginBottom: 'var(--sp-5)', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 22 }}>✅</span>
+          <span style={{ fontSize: 22 }}>OK</span>
           <div>
             <div style={{ fontFamily: 'var(--f-heading)', fontWeight: 700, color: 'var(--c-success)' }}>Project Accepted</div>
-            <div style={{ fontSize: 13, color: 'var(--c-text-muted)' }}>{proj.code} has been added to your active projects. Check Finance screen each quarter to track progress.</div>
+            <div style={{ fontSize: 13, color: 'var(--c-text-muted)' }}>
+              {proj.code} has been added to your active projects. Requirements will be checked when the planned duration ends.
+            </div>
           </div>
         </div>
       )}
       {confirmed === 'rejected' && (
         <div style={{ background: 'var(--c-error-bg)', border: '1px solid #fca5a5', borderRadius: 'var(--r-lg)', padding: '16px 20px', marginBottom: 'var(--sp-5)', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 22 }}>❌</span>
+          <span style={{ fontSize: 22 }}>X</span>
           <div>
             <div style={{ fontFamily: 'var(--f-heading)', fontWeight: 700, color: 'var(--c-error)' }}>Project Rejected</div>
-            <div style={{ fontSize: 13, color: 'var(--c-text-muted)' }}>This project has been declined and counted in your rejected total.</div>
+            <div style={{ fontSize: 13, color: 'var(--c-text-muted)' }}>This brief has been declined and counted in your rejected total.</div>
           </div>
         </div>
       )}
 
-      {/* Warning */}
-      {hasWarning && !confirmed && (
+      {!confirmed && !isAlreadyActive && (atCap || cantAfford || !meetsReputation) && (
         <div className="alert-box" style={{ marginBottom: 'var(--sp-5)' }}>
           <div className="alert-box__text">
-            <div className="alert-box__label">Requirement Check</div>
-            {!meetsReputation && <div>⚠️ Your reputation ({gs.reputation}) is below the minimum required ({proj.minReputation}).</div>}
-            {!meetsDepts && <div>⚠️ Missing required departments: {missingDepts.join(', ')}. Hire staff to activate them.</div>}
-            {!meetsSales && <div>⚠️ Sales requirement not met: needs {salesReq.count} {salesReq.type}{salesReq.count > 1 ? 's' : ''}.</div>}
-            <div style={{ marginTop: 6, fontStyle: 'italic' }}>This project will be checked against its requirements before completion.</div>
+            <div className="alert-box__label">Heads up</div>
+            {atCap && <div>You already have {MAX_ACTIVE_PROJECTS} active projects. Deliver some before accepting more.</div>}
+            {cantAfford && <div>Project cost (${proj.cost.toLocaleString()}) exceeds current cash (${gs.cash.toLocaleString()}).</div>}
+            {!meetsReputation && <div>Your reputation ({gs.reputation}) is below the recommended minimum ({proj.minReputation}). You can still accept, but delivery may slip.</div>}
+            <div style={{ marginTop: 6, fontStyle: 'italic' }}>Requirements are checked when the project reaches its planned end quarter.</div>
+          </div>
+        </div>
+      )}
+
+      {isAlreadyActive && isOverdue && (
+        <div className="alert-box" style={{ marginBottom: 'var(--sp-5)', borderLeftColor: 'var(--c-error)' }}>
+          <div className="alert-box__text">
+            <div className="alert-box__label" style={{ color: 'var(--c-error)' }}>Overdue</div>
+            <div>This project has been overdue for {proj.overdueQuarters} quarter(s).</div>
+            <div>Accumulated extra cost: ${(proj.extraCosts || 0).toLocaleString()}.</div>
+            <div>It will deliver as soon as your team meets its requirements.</div>
           </div>
         </div>
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 'var(--sp-6)', alignItems: 'start' }}>
-        {/* Left: project details */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-5)' }}>
-          {/* Header */}
           <div className="card card--accent">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--sp-4)', flexWrap: 'wrap' }}>
               <div>
@@ -108,8 +117,8 @@ export default function ProjectDetailScreen({ project: proj, gs, onGoBack, onGoT
                 </h1>
                 <div style={{ display: 'flex', gap: 'var(--sp-3)', flexWrap: 'wrap', alignItems: 'center' }}>
                   <span style={{ fontSize: 18, letterSpacing: -1, color: 'var(--c-gold)' }}>{renderStars(proj.stars)}</span>
-                  <span style={{ fontSize: 13, color: 'var(--c-text-muted)' }}>{proj.durationQuarters} quarter{proj.durationQuarters !== 1 ? 's' : ''}</span>
-                  <span style={{ fontSize: 13, color: 'var(--c-text-muted)' }}>· Min rep: {proj.minReputation}</span>
+                  <span style={{ fontSize: 13, color: 'var(--c-text-muted)' }}>{proj.durationQuarters} quarter(s)</span>
+                  <span style={{ fontSize: 13, color: 'var(--c-text-muted)' }}>- Min rep: {proj.minReputation}</span>
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
@@ -118,32 +127,32 @@ export default function ProjectDetailScreen({ project: proj, gs, onGoBack, onGoT
                   ${proj.revenue.toLocaleString()}
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--c-text-muted)' }}>
-                  Cost: ${proj.cost.toLocaleString()} · Rep: +{proj.reputationImpact}
+                  Cost: ${proj.cost.toLocaleString()} - Rep: +{proj.reputationImpact}
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Client brief */}
           <div className="card">
             <div className="game-section-title" style={{ marginBottom: 'var(--sp-3)' }}>Client Brief</div>
-            <p style={{ fontSize: 14, color: 'var(--c-text)', lineHeight: 1.7 }}>{proj.clientBrief}</p>
+            <p style={{ fontSize: 14, color: 'var(--c-text)', lineHeight: 1.7 }}>{proj.brief || proj.clientBrief}</p>
+            <p style={{ fontSize: 12, color: 'var(--c-text-muted)', marginTop: 12, fontStyle: 'italic' }}>
+              Read carefully and infer which departments and capacity you will need.
+            </p>
           </div>
 
-          {/* Financials */}
           <div className="card">
             <div className="game-section-title" style={{ marginBottom: 'var(--sp-4)' }}>Financial Overview</div>
-            <FinRow label="Revenue"           value={`$${proj.revenue.toLocaleString()}`} positive />
-            <FinRow label="Project Cost"      value={`$${proj.cost.toLocaleString()}`} />
-            <FinRow label="Gross Profit"      value={`$${(proj.revenue - proj.cost).toLocaleString()}`} highlight positive={proj.revenue > proj.cost} />
-            <FinRow label="Reputation Impact" value={`+${proj.reputationImpact} rep`} positive />
+            <FinRow label="Revenue" value={'$' + proj.revenue.toLocaleString()} positive />
+            <FinRow label="Project Cost" value={'$' + proj.cost.toLocaleString()} />
+            <FinRow label="Gross Profit" value={'$' + (proj.revenue - proj.cost).toLocaleString()} highlight positive={proj.revenue > proj.cost} />
+            <FinRow label="Reputation Impact" value={'+' + proj.reputationImpact + ' rep'} positive />
             <div style={{ marginTop: 16, padding: '12px 0', borderTop: '1px solid var(--c-border)' }}>
               <div style={{ fontSize: 12, color: 'var(--c-text-muted)', marginBottom: 4 }}>Cost Breakdown</div>
               <div style={{ fontSize: 13, color: 'var(--c-text)', lineHeight: 1.6 }}>{proj.costBreakdown}</div>
             </div>
           </div>
 
-          {/* Bonus / Fail logic */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--sp-4)' }}>
             <div className="card" style={{ borderLeft: '4px solid var(--c-success)', background: 'var(--c-success-bg)' }}>
               <div style={{ fontFamily: 'var(--f-heading)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--c-success)', marginBottom: 6 }}>Bonus Condition</div>
@@ -158,52 +167,31 @@ export default function ProjectDetailScreen({ project: proj, gs, onGoBack, onGoT
           <SmartPlayTip category="project" />
         </div>
 
-        {/* Right: requirements + CTA */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)' }}>
-          {/* Requirements */}
           <div className="card">
-            <div className="game-section-title" style={{ marginBottom: 'var(--sp-4)' }}>Requirements</div>
-            <RequirementRow label="Min Reputation" met={meetsReputation}
-              value={`${proj.minReputation} (you: ${gs.reputation})`} />
-            <RequirementRow label={`Sales (${salesReq.count} ${salesReq.type})`} met={meetsSales}
-              value={salesReq.type === 'specialist' ? `${salesDept.specialists} specialists` : `${salesDept.consultants} consultants`} />
-            <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--c-border)' }}>
-              <div style={{ fontFamily: 'var(--f-heading)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--c-text-muted)', marginBottom: 8 }}>Departments Needed</div>
-              {proj.matchedDepartments.map((deptId) => {
-                const d = departments.find((x) => x.id === deptId)
-                const required = proj.requiredDepartments.includes(deptId)
-                const met = d?.isActive
-                return (
-                  <div key={deptId} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '4px 0' }}>
-                    <span style={{ color: met ? 'var(--c-text)' : 'var(--c-text-muted)' }}>
-                      {d?.icon} {d?.name ?? deptId}
-                      {required && <span style={{ color: 'var(--c-primary)', marginLeft: 4 }}>*</span>}
-                    </span>
-                    <span style={{ color: met ? 'var(--c-success)' : 'var(--c-error)', fontWeight: 600 }}>
-                      {met ? '✓' : '✗'}
-                    </span>
-                  </div>
-                )
-              })}
-              <div style={{ fontSize: 11, color: 'var(--c-text-muted)', marginTop: 8 }}>* Required · others optional</div>
-            </div>
+            <div className="game-section-title" style={{ marginBottom: 'var(--sp-4)' }}>At a Glance</div>
+            <RequirementRow label="Min Reputation" met={meetsReputation} value={proj.minReputation + ' (you: ' + gs.reputation + ')'} />
+            <RequirementRow label="Cost vs Cash" met={!cantAfford} value={'$' + proj.cost.toLocaleString() + ' / $' + gs.cash.toLocaleString()} />
+            <RequirementRow label="Active project slots" met={!atCap} value={gs.activeProjects.length + '/' + MAX_ACTIVE_PROJECTS} />
+            <p style={{ fontSize: 12, color: 'var(--c-text-muted)', marginTop: 12, lineHeight: 1.5 }}>
+              Required departments are not shown - read the brief and decide which teams to staff.
+            </p>
           </div>
 
-          {/* CTA buttons */}
-          {!confirmed && !isAlreadyAccepted && (
+          {!confirmed && !isInActiveList && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
               <button className="btn btn--primary" style={{ width: '100%', justifyContent: 'center' }} onClick={handleAccept}>
-                ✓ Accept Project
+                Accept Project
               </button>
               <button className="btn btn--secondary" style={{ width: '100%', justifyContent: 'center' }} onClick={handleReject}>
-                ✗ Reject Project
+                Reject Project
               </button>
             </div>
           )}
 
-          {isAlreadyAccepted && !confirmed && (
+          {isInActiveList && !confirmed && (
             <div style={{ textAlign: 'center', padding: '12px', background: 'var(--c-success-bg)', borderRadius: 'var(--r-lg)', color: 'var(--c-success)', fontFamily: 'var(--f-heading)', fontWeight: 700 }}>
-              ✓ Already Accepted
+              Already Active
             </div>
           )}
         </div>
@@ -227,7 +215,7 @@ function RequirementRow({ label, met, value }) {
       <span style={{ fontSize: 13, color: 'var(--c-text)' }}>{label}</span>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <span style={{ fontSize: 12, color: 'var(--c-text-muted)' }}>{value}</span>
-        <span style={{ color: met ? 'var(--c-success)' : 'var(--c-error)', fontWeight: 700 }}>{met ? '✓' : '✗'}</span>
+        <span style={{ color: met ? 'var(--c-success)' : 'var(--c-error)', fontWeight: 700 }}>{met ? 'OK' : '!'}</span>
       </div>
     </div>
   )
