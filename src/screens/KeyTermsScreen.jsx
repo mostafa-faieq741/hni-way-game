@@ -338,7 +338,13 @@ export default function KeyTermsScreen({ onContinue }) {
 
       {/* Submit (pre-submit) — enabled only once all 22 terms are placed */}
       {!submitted && (
-        <div className="keyterms-submit">
+        <div className="keyterms-submit" style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <Button
+            variant="secondary"
+            onClick={() => onContinue?.()}
+          >
+            Skip (Test)
+          </Button>
           <Button
             variant="primary"
             onClick={handleSubmit}
