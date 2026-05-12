@@ -10,27 +10,21 @@ import Button from '../components/Button.jsx'
    ───────────────────────────────────────────────────────── */
 function DragDropActivity({ terms, submitted, onMatchesUpdate }) {
   const [pool, setPool] = useState(() => shuffleArray(terms.map((t) => t.id)))
-  const [matches, setMatches] = useState({})      // { defId: termId }
-  const [dragId, setDragId] = useState(null)       // term being dragged
-  const [dragOverId, setDragOverId] = useState(null) // def slot being hovered
-  const [selected, setSelected] = useState(null)   // tap-selected term id
+  const [matches, setMatches] = useState({})
+  const [dragId, setDragId] = useState(null)
+  const [dragOverId, setDragOverId] = useState(null)
+  const [selected, setSelected] = useState(null)
 
-  // Detect touch-only devices
   const isTouchDevice = typeof window !== 'undefined' &&
     ('ontouchstart' in window || navigator.maxTouchPoints > 0)
 
-  // Notify parent whenever matches change
-  useEffect(() => {
-    onMatchesUpdate?.(matches)
-  }, [matches]) // eslint-disable-line
+  useEffect(() => { onMatchesUpdate?.(matches) }, [matches]) // eslint-disable-line
 
   const getTerm = (id) => terms.find((t) => t.id === id)
 
-  /* ── Place a term into a definition slot ── */
   const place = useCallback((defId, termId) => {
     setMatches((prevMatches) => {
       const existing = prevMatches[defId]
-      // Return previously-placed term to pool (if any)
       if (existing && existing !== termId) {
         setPool((p) => [...p, existing])
       }
@@ -39,7 +33,6 @@ function DragDropActivity({ terms, submitted, onMatchesUpdate }) {
     setPool((p) => p.filter((id) => id !== termId))
   }, [])
 
-  /* ── Remove a matched term back to pool ── */
   const unplace = useCallback((defId) => {
     const termId = matches[defId]
     if (!termId) return
@@ -51,42 +44,31 @@ function DragDropActivity({ terms, submitted, onMatchesUpdate }) {
     setPool((p) => [...p, termId])
   }, [matches])
 
-  /* ══ Desktop: HTML5 drag-and-drop handlers ══ */
   const handleDragStart = (e, termId) => {
     setDragId(termId)
     e.dataTransfer.effectAllowed = 'move'
     e.dataTransfer.setData('text/plain', termId)
   }
-
-  const handleDragEnd = () => {
-    setDragId(null)
-    setDragOverId(null)
-  }
-
+  const handleDragEnd = () => { setDragId(null); setDragOverId(null) }
   const handleDragOver = (e, defId) => {
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
     setDragOverId(defId)
   }
-
   const handleDragLeave = (e) => {
     if (e.currentTarget === e.target) setDragOverId(null)
   }
-
   const handleDrop = (e, defId) => {
     e.preventDefault()
     const termId = e.dataTransfer.getData('text/plain') || dragId
     if (termId) place(defId, termId)
-    setDragId(null)
-    setDragOverId(null)
+    setDragId(null); setDragOverId(null)
   }
 
-  /* ══ Mobile: tap-to-select + tap-to-place ══ */
   const handleTermTap = (termId) => {
     if (submitted) return
     setSelected((s) => (s === termId ? null : termId))
   }
-
   const handleSlotTap = (defId) => {
     if (submitted) return
     if (selected) {
@@ -95,13 +77,10 @@ function DragDropActivity({ terms, submitted, onMatchesUpdate }) {
     }
   }
 
-  /* ── Result helpers ── */
   const isCorrect = (defId) => matches[defId] === defId
 
-  /* ── Render ── */
   return (
     <div className="dnd-activity">
-      {/* ── Term Pool ── */}
       {!submitted && (
         <div className="dnd-pool">
           <p className="dnd-pool__label">
@@ -112,7 +91,7 @@ function DragDropActivity({ terms, submitted, onMatchesUpdate }) {
           <div className="dnd-pool__chips">
             {pool.length === 0 ? (
               <span className="dnd-pool__empty">
-                ✓ All terms placed — review and submit when ready.
+                All terms placed — review and submit when ready.
               </span>
             ) : (
               pool.map((termId) => (
@@ -122,16 +101,14 @@ function DragDropActivity({ terms, submitted, onMatchesUpdate }) {
                     'dnd-chip',
                     dragId === termId ? 'dnd-chip--dragging' : '',
                     selected === termId ? 'dnd-chip--selected' : '',
-                  ]
-                    .filter(Boolean)
-                    .join(' ')}
+                  ].filter(Boolean).join(' ')}
                   draggable={!submitted}
                   onDragStart={(e) => handleDragStart(e, termId)}
                   onDragEnd={handleDragEnd}
                   onClick={() => handleTermTap(termId)}
                   role="button"
                   tabIndex={0}
-                  aria-label={`Term: ${getTerm(termId)?.term}`}
+                  aria-label={'Term: ' + getTerm(termId)?.term}
                   onKeyDown={(e) => e.key === 'Enter' && handleTermTap(termId)}
                 >
                   {getTerm(termId)?.term}
@@ -142,65 +119,59 @@ function DragDropActivity({ terms, submitted, onMatchesUpdate }) {
         </div>
       )}
 
-      {/* ── Definition Rows ── */}
       <div className="dnd-defs" role="list">
         {terms.map((term) => {
           const matchedTermId = matches[term.id]
           const matchedTerm = matchedTermId ? getTerm(matchedTermId) : null
           let rowClass = 'dnd-row'
           if (submitted) {
-            if (!matchedTermId)      rowClass += ' dnd-row--unmatched'
+            if (!matchedTermId)          rowClass += ' dnd-row--unmatched'
             else if (isCorrect(term.id)) rowClass += ' dnd-row--correct'
-            else                    rowClass += ' dnd-row--incorrect'
+            else                         rowClass += ' dnd-row--incorrect'
           }
 
           return (
             <div key={term.id} className={rowClass} role="listitem">
-              {/* Definition text */}
               <div className="dnd-row__def">{term.definition}</div>
-
-              {/* Drop slot */}
               <div
                 className={[
                   'dnd-row__slot',
                   matchedTermId ? 'dnd-row__slot--filled' : 'dnd-row__slot--empty',
                   dragOverId === term.id ? 'dnd-row__slot--dragover' : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
+                ].filter(Boolean).join(' ')}
                 onDragOver={(e) => !submitted && handleDragOver(e, term.id)}
                 onDragLeave={handleDragLeave}
                 onDrop={(e) => !submitted && handleDrop(e, term.id)}
                 onClick={() => !submitted && handleSlotTap(term.id)}
                 role="button"
                 tabIndex={0}
-                aria-label={
-                  matchedTerm
-                    ? `Matched: ${matchedTerm.term}`
-                    : `Drop zone for: ${term.definition}`
-                }
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !submitted) handleSlotTap(term.id)
-                }}
+                aria-label={matchedTerm ? 'Matched: ' + matchedTerm.term : 'Drop zone for: ' + term.definition}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !submitted) handleSlotTap(term.id) }}
               >
                 {matchedTerm ? (
-                  <div className="dnd-slot__content">
-                    <span className="dnd-slot__term">{matchedTerm.term}</span>
-                    {submitted ? (
-                      <span className="dnd-slot__icon" aria-hidden="true">
-                        {isCorrect(term.id) ? '✓' : '✗'}
+                  <div className="dnd-slot__content" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between', gap: 'var(--sp-2)' }}>
+                      <span className="dnd-slot__term" style={{ textDecoration: submitted && !isCorrect(term.id) ? 'line-through' : 'none', color: submitted && !isCorrect(term.id) ? 'var(--c-text-muted)' : 'inherit' }}>
+                        {matchedTerm.term}
                       </span>
-                    ) : (
-                      <button
-                        className="dnd-slot__remove"
-                        aria-label={`Remove ${matchedTerm.term}`}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          unplace(term.id)
-                        }}
-                      >
-                        ×
-                      </button>
+                      {submitted ? (
+                        <span className="dnd-slot__icon" aria-hidden="true">
+                          {isCorrect(term.id) ? '✓' : '✗'}
+                        </span>
+                      ) : (
+                        <button
+                          className="dnd-slot__remove"
+                          aria-label={'Remove ' + matchedTerm.term}
+                          onClick={(e) => { e.stopPropagation(); unplace(term.id) }}
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                    {submitted && !isCorrect(term.id) && (
+                      <div style={{ fontSize: '12px', color: 'var(--c-success)', marginTop: '4px', fontWeight: 700 }}>
+                        Correct: {term.term}
+                      </div>
                     )}
                   </div>
                 ) : (
@@ -219,42 +190,48 @@ function DragDropActivity({ terms, submitted, onMatchesUpdate }) {
 
 /* ─────────────────────────────────────────────────────────
    KeyTermsScreen
-   Two-tab matching activity (Business + Fixed Costs).
-   Single "Submit All" button checks both groups at once.
    ───────────────────────────────────────────────────────── */
-export default function KeyTermsScreen() {
-  const [activeTab, setActiveTab] = useState(0) // 0 = Business, 1 = Fixed
+export default function KeyTermsScreen({ onContinue }) {
+  const [activeTab, setActiveTab] = useState(0)
   const [submitted, setSubmitted] = useState(false)
-  const [score, setScore] = useState(null)        // { correct, total }
+  const [score, setScore] = useState(null)
 
-  // Store latest matches from each group via ref (avoids stale closure)
+  const [businessMatches, setBusinessMatches] = useState({})
+  const [fixedMatches, setFixedMatches] = useState({})
+
   const businessMatchesRef = useRef({})
   const fixedMatchesRef = useRef({})
 
-  const handleBusinessUpdate = useCallback((m) => { businessMatchesRef.current = m }, [])
-  const handleFixedUpdate    = useCallback((m) => { fixedMatchesRef.current    = m }, [])
+  const handleBusinessUpdate = useCallback((m) => {
+    businessMatchesRef.current = m
+    setBusinessMatches(m)
+  }, [])
+  const handleFixedUpdate = useCallback((m) => {
+    fixedMatchesRef.current = m
+    setFixedMatches(m)
+  }, [])
+
+  const businessMatchedCount = Object.keys(businessMatches).length
+  const fixedMatchedCount    = Object.keys(fixedMatches).length
+  const businessComplete = businessMatchedCount === businessTerms.length
+  const fixedComplete    = fixedMatchedCount    === fixedCostTerms.length
+  const allMatched = businessComplete && fixedComplete
 
   const handleSubmit = () => {
+    if (!allMatched) return
     const bm = businessMatchesRef.current
     const fm = fixedMatchesRef.current
-
     const bCorrect = businessTerms.filter((t) => bm[t.id] === t.id).length
     const fCorrect = fixedCostTerms.filter((t) => fm[t.id] === t.id).length
-    const total   = businessTerms.length + fixedCostTerms.length
-
+    const total = businessTerms.length + fixedCostTerms.length
     setScore({ correct: bCorrect + fCorrect, total })
     setSubmitted(true)
   }
-
-  const totalMatched =
-    Object.keys(businessMatchesRef.current).length +
-    Object.keys(fixedMatchesRef.current).length
 
   const isPass = score && score.correct >= Math.ceil(score.total * 0.7)
 
   return (
     <div className="screen">
-      {/* Header */}
       <div className="keyterms-screen__header">
         <span className="section-label">HNI Way</span>
         <h1 className="keyterms-screen__title">Key Terms</h1>
@@ -263,10 +240,27 @@ export default function KeyTermsScreen() {
         </p>
       </div>
 
-      {/* Score banner (after submit) */}
+      {/* Two-section banner — makes it clear there are 2 tabs to complete */}
+      <div className="alert-box" style={{ marginBottom: 24, marginTop: 0 }} role="note">
+        <svg className="alert-box__icon" style={{ flexShrink: 0, marginTop: 2 }} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--c-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="16" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+        </svg>
+        <div className="alert-box__text">
+          <div className="alert-box__label">
+            This activity has two sections
+          </div>
+          <div>
+            Complete <strong>Business Terminology</strong> <em>and</em> <strong>Fixed Costs</strong> before continuing.
+            Use the tabs below to switch between them.
+          </div>
+        </div>
+      </div>
+
       {submitted && score && (
-        <div className={`score-banner score-banner--${isPass ? 'pass' : 'fail'}`}>
-          <span className="score-banner__icon">{isPass ? '🎉' : '📝'}</span>
+        <div className={'score-banner score-banner--' + (isPass ? 'pass' : 'fail')}>
+          <span className="score-banner__icon">{isPass ? '★' : '✎'}</span>
           <div>
             <div className="score-banner__text">
               You matched {score.correct} out of {score.total} correctly.
@@ -280,28 +274,30 @@ export default function KeyTermsScreen() {
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="tabs" role="tablist">
+      {/* Tabs — highlighted with progress badges */}
+      <div className="tabs tabs--highlighted" role="tablist">
         <button
           role="tab"
           aria-selected={activeTab === 0}
-          className={`tab-btn ${activeTab === 0 ? 'tab-btn--active' : ''}`}
+          className={'tab-btn tab-btn--highlight ' + (activeTab === 0 ? 'tab-btn--active' : '') + (businessComplete ? ' tab-btn--complete' : '')}
           onClick={() => setActiveTab(0)}
         >
-          Business Terminology
-          <span style={{ marginLeft: 6, opacity: 0.6, fontSize: 11 }}>
-            ({businessTerms.length})
+          <span className="tab-btn__index">1</span>
+          <span className="tab-btn__label">Business Terminology</span>
+          <span className={'tab-btn__progress' + (businessComplete ? ' tab-btn__progress--done' : '')}>
+            {businessMatchedCount}/{businessTerms.length}
           </span>
         </button>
         <button
           role="tab"
           aria-selected={activeTab === 1}
-          className={`tab-btn ${activeTab === 1 ? 'tab-btn--active' : ''}`}
+          className={'tab-btn tab-btn--highlight ' + (activeTab === 1 ? 'tab-btn--active' : '') + (fixedComplete ? ' tab-btn--complete' : '')}
           onClick={() => setActiveTab(1)}
         >
-          Fixed Costs
-          <span style={{ marginLeft: 6, opacity: 0.6, fontSize: 11 }}>
-            ({fixedCostTerms.length})
+          <span className="tab-btn__index">2</span>
+          <span className="tab-btn__label">Fixed Costs</span>
+          <span className={'tab-btn__progress' + (fixedComplete ? ' tab-btn__progress--done' : '')}>
+            {fixedMatchedCount}/{fixedCostTerms.length}
           </span>
         </button>
       </div>
@@ -325,27 +321,45 @@ export default function KeyTermsScreen() {
         )}
       </div>
 
-      {/* Mobile interaction hint */}
+      {/* Helper hint — only shown before submit */}
+      {!allMatched && !submitted && (
+        <div className="keyterms-blocker" role="status">
+          {!businessComplete && !fixedComplete
+            ? 'Place every term in both sections to enable the Submit button.'
+            : !businessComplete
+              ? 'Finish placing terms in the Business Terminology section.'
+              : 'Finish placing terms in the Fixed Costs section.'}
+        </div>
+      )}
+
       <p className="mobile-hint">
         Tip: Tap a term chip to select it, then tap a definition slot to match.
       </p>
 
-      {/* Submit */}
+      {/* Submit (pre-submit) — enabled only once all 22 terms are placed */}
       {!submitted && (
         <div className="keyterms-submit">
           <Button
             variant="primary"
             onClick={handleSubmit}
+            disabled={!allMatched}
           >
             Submit All Answers
           </Button>
         </div>
       )}
 
+      {/* Continue (post-submit) — moves to the next screen */}
       {submitted && (
-        <div className="keyterms-submit" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: 13, color: 'var(--c-text-muted)' }}>
-            Review your answers in each tab, then click Next.
+        <div className="keyterms-submit" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
+          <Button
+            variant="primary"
+            onClick={() => onContinue?.()}
+          >
+            Continue to next section
+          </Button>
+          <span style={{ fontSize: 13, color: 'var(--c-text-muted)', textAlign: 'center' }}>
+            Review your answers in each tab if you want, then click Continue.
           </span>
         </div>
       )}

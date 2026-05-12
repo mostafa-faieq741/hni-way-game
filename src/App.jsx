@@ -37,7 +37,7 @@ export default function App() {
 
   const navConfig = {
     showBack:  screenIndex > 1,
-    showNext:  true,
+    showNext:  screenIndex !== 2,
     nextLabel: screenIndex === 3 ? 'Continue to Game' : 'Next',
     backLabel: 'Back',
   }
@@ -55,7 +55,7 @@ export default function App() {
       case 2:
         return (
           <main className="app-main">
-            <KeyTermsScreen />
+            <KeyTermsScreen onContinue={goNext} />
           </main>
         )
       case 3:

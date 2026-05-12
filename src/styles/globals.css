@@ -151,7 +151,6 @@ a { color: inherit; text-decoration: none; }
 /* ── Main Content ───────────────────────────────────────── */
 .app-main {
   flex: 1;
-  overflow-y: auto;
 }
 
 /* ── Navigation Footer ──────────────────────────────────── */
@@ -177,8 +176,8 @@ a { color: inherit; text-decoration: none; }
 }
 
 @keyframes screenFadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 /* ── Buttons ─────────────────────────────────────────────── */
@@ -487,6 +486,75 @@ a { color: inherit; text-decoration: none; }
   box-shadow: var(--sh-card);
 }
 
+/* ── Highlighted Tabs (Key Terms Screen) ── */
+.tabs--highlighted {
+  width: 100%;
+  display: flex;
+  background: var(--c-bg);
+  padding: 6px;
+  gap: var(--sp-2);
+}
+
+.tab-btn--highlight {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  font-size: 14px;
+  border-radius: var(--r-md);
+}
+
+.tab-btn__index {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--c-text-muted);
+  color: var(--c-white);
+  font-size: 11px;
+}
+
+.tab-btn--active .tab-btn__index {
+  background: var(--c-primary);
+}
+
+.tab-btn__progress {
+  font-size: 12px;
+  background: var(--c-border);
+  padding: 2px 6px;
+  border-radius: var(--r-full);
+}
+
+.tab-btn__progress--done {
+  background: var(--c-success-bg);
+  color: var(--c-success);
+}
+
+@keyframes pulse-tab {
+  0% { box-shadow: 0 0 0 0 rgba(145, 25, 90, 0.4); }
+  70% { box-shadow: 0 0 0 6px rgba(145, 25, 90, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(145, 25, 90, 0); }
+}
+
+.tab-btn--highlight:not(.tab-btn--active):not(.tab-btn--complete) {
+  animation: pulse-tab 1s infinite;
+  border: 1px solid var(--c-primary-lt);
+}
+
+@media (max-width: 600px) {
+  .tabs--highlighted {
+    flex-direction: column;
+  }
+  .tab-btn--highlight {
+    justify-content: space-between;
+  }
+}
+
+
 /* ── ═══════════════════════════════════════════════════════ */
 /* ── START SCREEN ──────────────────────────────────────── */
 /* ── ═══════════════════════════════════════════════════════ */
@@ -748,6 +816,11 @@ a { color: inherit; text-decoration: none; }
   border-radius: var(--r-lg);
   padding: var(--sp-5);
   box-shadow: var(--sh-card);
+  position: sticky;
+  top: calc(var(--header-h) + var(--sp-4));
+  z-index: 10;
+  align-self: flex-start;
+  width: 100%;
 }
 
 .dnd-pool__label {
@@ -856,10 +929,12 @@ a { color: inherit; text-decoration: none; }
 .dnd-row__slot {
   flex-shrink: 0;
   min-width: 140px;
-  height: 36px;
-  border-radius: var(--r-full);
+  min-height: 36px;
+  height: auto;
+  border-radius: var(--r-md);
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   justify-content: center;
   transition: all var(--t-fast);
 }
@@ -879,7 +954,7 @@ a { color: inherit; text-decoration: none; }
 .dnd-row__slot--filled {
   border: 1.5px solid var(--c-border-dk);
   background: var(--c-bg);
-  padding: 0 var(--sp-3);
+  padding: 6px var(--sp-3);
 }
 
 .dnd-slot__placeholder {
