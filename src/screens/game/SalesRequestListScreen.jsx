@@ -10,10 +10,18 @@ export default function SalesRequestListScreen({ gs, onGoBack, onOpenProject }) 
   const completedIds = new Set((gs.completedProjects || []).map((p) => p.id))
   const rejectedIds = new Set(gs.rejectedIds || [])
 
-  // Filter out rejected, accepted, and already completed projects
-  const projects = allProjects.filter((p) =>
+  // Sales capacity caps how many briefs surface this quarter.
+  // Specialist = 2 briefs; Consultant = 4 briefs.
+  const sales = gs.departments.find((d) => d.id === 'sales') || { specialists: 0, consultants: 0 }
+  const salesCapacity = sales.specialists * 2 + sales.consultants * 4
+
+  const filtered = allProjects.filter((p) =>
     !rejectedIds.has(p.id) && !completedIds.has(p.id)
   )
+  // Slice by capacity but keep already-accepted briefs visible too
+  const visibleNew = filtered.filter((p) => !acceptedIds.has(p.id)).slice(0, salesCapacity)
+  const visibleAccepted = filtered.filter((p) => acceptedIds.has(p.id))
+  const projects = [...visibleNew, ...visibleAccepted]
 
   return (
     <div>
@@ -24,7 +32,7 @@ export default function SalesRequestListScreen({ gs, onGoBack, onOpenProject }) 
         title="Sales Requests"
         steps={[
           'These are project briefs your Sales team has surfaced this quarter.',
-          'Click any brief to see the full client request, financials, and accept / reject options.',
+          'How many briefs appear depends on your sales staff: specialist = 2 briefs, consultant = 4 briefs.',
           'Rejected briefs disappear from the list. You can hold up to 8 active projects at the same time.',
         ]}
       />
@@ -35,7 +43,9 @@ export default function SalesRequestListScreen({ gs, onGoBack, onOpenProject }) 
           Sales Requests
         </h1>
         <p style={{ fontSize: 14, color: 'var(--c-text-muted)' }}>
-          {projects.length} brief{projects.length !== 1 ? 's' : ''} available - {gs.activeProjects.length}/{MAX_ACTIVE_PROJECTS} project slots used
+          {projects.length} brief{projects.length !== 1 ? 's' : ''} available -{' '}
+          sales capacity {salesCapacity} ({sales.specialists} specialist x 2 + {sales.consultants} consultant x 4) -{' '}
+          {gs.activeProjects.length}/{MAX_ACTIVE_PROJECTS} project slots used
         </p>
       </div>
 
@@ -46,7 +56,11 @@ export default function SalesRequestListScreen({ gs, onGoBack, onOpenProject }) 
           <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--c-text-muted)' }}>
             <div style={{ fontSize: 36, marginBottom: 12 }}>(none)</div>
             <div style={{ fontFamily: 'var(--f-heading)', fontWeight: 700, marginBottom: 6 }}>No briefs available this quarter</div>
-            <div style={{ fontSize: 13 }}>Check back next quarter or invest in your Forecast to anticipate upcoming opportunities.</div>
+            <div style={{ fontSize: 13 }}>
+              {salesCapacity === 0
+                ? 'Hire a Sales specialist or consultant to start generating briefs.'
+                : 'Check back next quarter or invest in your Forecast to anticipate upcoming opportunities.'}
+            </div>
           </div>
         )}
 

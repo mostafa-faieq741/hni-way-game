@@ -33,7 +33,16 @@ import {
 } from '../../data/projectLifecycle.js'
 import { pickEventForQuarter } from '../../data/events.js'
 
-const MAIN_SCREENS = new Set(['home', 'forecast', 'finance'])
+const TAB_TO_SCREEN = { home: 'home', forecast: 'forecast', finance: 'finance' }
+const HIDE_NAV_ON = new Set(['year-summary', 'final-report'])
+
+// Which top-level tab is "active" for a given sub-screen
+function tabForScreen(screen) {
+  if (screen === 'forecast') return 'forecast'
+  if (screen === 'finance')  return 'finance'
+  // home, sales-requests, project-detail, active-projects, active-project-detail, dept-detail
+  return 'home'
+}
 
 function saveToLocalStorage(state) {
   try {
@@ -134,6 +143,11 @@ function transferStaff(prev, sourceId, targetId, key) {
       return d
     }),
   }
+}
+
+function hasHrStaff(prev) {
+  const hr = prev.departments.find((d) => d.id === 'hr')
+  return ((hr?.specialists || 0) + (hr?.consultants || 0)) > 0
 }
 
 export default function GameContainer({ gameSetupResult }) {
@@ -295,12 +309,26 @@ export default function GameContainer({ gameSetupResult }) {
   }, [])
 
   const handleHire = useCallback((deptId, type) => {
+    // HR gate: enforce that the first hire is HR
+    let blocked = false
+    setGs((prev) => {
+      if (deptId !== 'hr' && !hasHrStaff(prev)) {
+        blocked = true
+        return prev
+      }
+      return prev
+    })
+    if (blocked) {
+      showToast('Hire an HR employee first before hiring for other departments.')
+      return
+    }
+
     const key = type === 'specialist' ? 'specialists' : 'consultants'
     const cost = type === 'specialist' ? GAME_CONFIG.specialistCostPerQuarter : GAME_CONFIG.consultantCostPerQuarter
     pushFloat('+1 employee', 'positive')
     pushFloat('+$' + cost.toLocaleString() + ' fixed/qtr', 'negative')
     setGs((prev) => patchDeptStaffing(prev, deptId, key, 1))
-  }, [pushFloat])
+  }, [pushFloat, showToast])
 
   const handleFire = useCallback((deptId, type) => {
     setGs((prev) => {
@@ -376,7 +404,9 @@ export default function GameContainer({ gameSetupResult }) {
     setPendingEvent(null)
   }, [pendingEvent, pushFloat, showToast])
 
-  const showNav = MAIN_SCREENS.has(gameScreen)
+  // Bottom tabs visible everywhere inside the game except the year summary and final report
+  const showNav = !HIDE_NAV_ON.has(gameScreen)
+  const activeTab = tabForScreen(gameScreen)
   const quarterKey = gs.currentYear + '-' + gs.yearQuarter
 
   return (
@@ -486,7 +516,10 @@ export default function GameContainer({ gameSetupResult }) {
       </div>
 
       {showNav && (
-        <GameNav activeScreen={gameScreen} onNavigate={(screen) => setGameScreen(screen)} />
+        <GameNav
+          activeScreen={activeTab}
+          onNavigate={(tab) => setGameScreen(TAB_TO_SCREEN[tab] || tab)}
+        />
       )}
 
       <GlossaryModal open={showGlossary} onClose={() => setShowGlossary(false)} />

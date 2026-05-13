@@ -1,10 +1,13 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { GAME_CONFIG } from '../../data/gameConfig.js'
 import SmartPlayTip from '../../components/SmartPlayTip.jsx'
 import TutorialOverlay from '../../components/TutorialOverlay.jsx'
+import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import { computeFixedExpenses } from '../../data/projectLifecycle.js'
 
 export default function FinanceScreen({ gs, onSubmitQuarter, onShowToast }) {
+  const [confirming, setConfirming] = useState(false)
+
   const fixedExpenses = computeFixedExpenses(gs.departments)
   const endingThisQtr = gs.activeProjects.filter((p) => p.quartersLeft <= 1 || p.status === 'overdue')
   const expectedRevenue = endingThisQtr.reduce((s, p) => s + p.revenue, 0)
@@ -13,6 +16,7 @@ export default function FinanceScreen({ gs, onSubmitQuarter, onShowToast }) {
     .reduce((s, p) => s + Math.round(p.cost * 0.10), 0)
 
   const handleSubmit = () => {
+    setConfirming(false)
     onSubmitQuarter()
     onShowToast?.('Quarter submitted. Reviewing the resolution panel...')
   }
@@ -27,7 +31,7 @@ export default function FinanceScreen({ gs, onSubmitQuarter, onShowToast }) {
         steps={[
           'Submit Quarter resolves everything: fixed expenses paid, revenue auto-collected for delivered projects, penalties applied.',
           'You do not need to collect revenue manually.',
-          'After 4 quarters you will see the Year Summary. After 20 quarters, the Final Report.',
+          'You will be asked to confirm before the quarter is submitted.',
         ]}
       />
 
@@ -43,7 +47,7 @@ export default function FinanceScreen({ gs, onSubmitQuarter, onShowToast }) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 'var(--sp-3)', flexWrap: 'wrap' }}>
-            <button className="btn btn--primary btn--md" onClick={handleSubmit}>
+            <button className="btn btn--primary btn--md" onClick={() => setConfirming(true)}>
               Submit Quarter
             </button>
           </div>
@@ -154,6 +158,16 @@ export default function FinanceScreen({ gs, onSubmitQuarter, onShowToast }) {
           <SmartPlayTip category="finance" />
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirming}
+        title="End this quarter?"
+        body={'You are about to resolve Year ' + gs.currentYear + ', Q' + gs.yearQuarter + '. Fixed expenses will be paid, revenue will be collected on delivered projects, and overdue penalties will be applied. Continue?'}
+        confirmLabel="Yes, submit quarter"
+        cancelLabel="Not yet"
+        onConfirm={handleSubmit}
+        onCancel={() => setConfirming(false)}
+      />
     </div>
   )
 }

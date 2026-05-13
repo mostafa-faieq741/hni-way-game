@@ -19,9 +19,17 @@ export default function HomeScreen({ gs, onNavigate, onHire, onShowToast }) {
   const acceptedIds = new Set(gs.activeProjects.map((p) => p.id))
   const completedIds = new Set((gs.completedProjects || []).map((p) => p.id))
   const rejectedIds = new Set(gs.rejectedIds || [])
-  const salesRequests = allProjects.filter((p) =>
+
+  // Sales capacity: specialist = 2 briefs/qtr, consultant = 4 briefs/qtr.
+  const sales = gs.departments.find((d) => d.id === 'sales') || { specialists: 0, consultants: 0 }
+  const salesCapacity = sales.specialists * 2 + sales.consultants * 4
+
+  const availablePool = allProjects.filter((p) =>
     !rejectedIds.has(p.id) && !completedIds.has(p.id) && !acceptedIds.has(p.id)
   )
+  // Cap the visible request count by sales staff capacity.
+  const salesRequests = availablePool.slice(0, salesCapacity)
+
   const activeDepts = departments.filter((d) => d.isActive)
 
   const totalEmployees = gs.departments.reduce(
@@ -36,6 +44,13 @@ export default function HomeScreen({ gs, onNavigate, onHire, onShowToast }) {
 
   const overdueCount = gs.activeProjects.filter((p) => p.status === 'overdue').length
 
+  // Cash flow for the last quarter = revenue - fixed expenses - overdue penalties
+  const lastQtrCashFlow = gs.lastResolution
+    ? (gs.lastResolution.revenueGained || 0)
+      - (gs.lastResolution.fixedExpenses || 0)
+      - (gs.lastResolution.extraCostsAdded || 0)
+    : null
+
   return (
     <div>
       <TutorialOverlay
@@ -44,7 +59,7 @@ export default function HomeScreen({ gs, onNavigate, onHire, onShowToast }) {
         steps={[
           'This is your dashboard. The top bar shows cash, quarter, employees, reputation, and the quarter timer.',
           'Open Sales Requests to accept new project briefs.',
-          'Use the Hire button to activate inactive departments by hiring directly from Home.',
+          'Use the Hire button to activate inactive departments by hiring directly from Home. HR must be your first hire.',
           'Click any active department to manage staffing in detail.',
           'Visit Active Projects to see what is in delivery.',
         ]}
@@ -75,6 +90,9 @@ export default function HomeScreen({ gs, onNavigate, onHire, onShowToast }) {
               <div className="sales-request-card__title">Sales Requests</div>
               <div style={{ fontSize: 13, opacity: 0.85, marginTop: 4 }}>
                 {salesRequests.length} brief{salesRequests.length !== 1 ? 's' : ''} this quarter
+                {salesCapacity > 0
+                  ? ' (sales capacity ' + salesCapacity + ')'
+                  : ' (hire sales to surface briefs)'}
               </div>
             </div>
             <div className="sales-request-card__count">{salesRequests.length}</div>
@@ -142,6 +160,14 @@ export default function HomeScreen({ gs, onNavigate, onHire, onShowToast }) {
               <span className="totals-row__label">Net Profit</span>
               <span className={'totals-row__value ' + (gs.netProfit >= 0 ? 'totals-row__value--positive' : 'totals-row__value--negative')}>
                 ${gs.netProfit.toLocaleString()}
+              </span>
+            </div>
+            <div className="totals-row">
+              <span className="totals-row__label">Cash Flow (last qtr)</span>
+              <span className={'totals-row__value ' + (lastQtrCashFlow === null ? '' : (lastQtrCashFlow >= 0 ? 'totals-row__value--positive' : 'totals-row__value--negative'))}>
+                {lastQtrCashFlow === null
+                  ? '—'
+                  : (lastQtrCashFlow >= 0 ? '+$' : '-$') + Math.abs(lastQtrCashFlow).toLocaleString()}
               </span>
             </div>
             <div className="totals-row">

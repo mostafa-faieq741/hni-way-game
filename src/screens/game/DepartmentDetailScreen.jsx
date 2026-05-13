@@ -3,17 +3,53 @@ import { GAME_CONFIG } from '../../data/gameConfig.js'
 import SmartPlayTip from '../../components/SmartPlayTip.jsx'
 import TutorialOverlay from '../../components/TutorialOverlay.jsx'
 import { DEPARTMENTS_DATA } from '../../data/departments.js'
+import ConfirmDialog from '../../components/ConfirmDialog.jsx'
+import { getHrGate } from '../../components/HireModal.jsx'
 
 export default function DepartmentDetailScreen({ dept, gs, onHire, onFire, onTransfer, onGoBack, onShowToast }) {
   const [showTransfer, setShowTransfer] = useState(false)
   const [transferType, setTransferType] = useState('specialist')
   const [transferTarget, setTransferTarget] = useState('')
+  const [confirm, setConfirm] = useState(null) // { title, body, run }
 
   const staffing = gs.departments.find((d) => d.id === dept.id) || { specialists: 0, consultants: 0 }
   const specialists = staffing.specialists
   const consultants = staffing.consultants
   const totalStaff = specialists + consultants
   const otherDepts = DEPARTMENTS_DATA.filter((d) => d.id !== dept.id)
+  const { hasHr } = getHrGate(gs)
+
+  const askConfirm = (cfg) => setConfirm(cfg)
+  const runConfirm = () => {
+    if (!confirm) return
+    confirm.run()
+    setConfirm(null)
+  }
+
+  const doHire = (type) => {
+    if (!hasHr && dept.id !== 'hr') {
+      onShowToast('You need to hire an HR first before hiring people for other departments.')
+      return
+    }
+    const cost = type === 'specialist' ? GAME_CONFIG.specialistCostPerQuarter : GAME_CONFIG.consultantCostPerQuarter
+    askConfirm({
+      title: 'Confirm hire',
+      body: 'Are you sure you want to hire 1 ' + type + ' for ' + dept.name + '? This will add $' + cost.toLocaleString() + '/quarter in fixed expenses.',
+      confirmLabel: 'Yes, hire',
+      tone: 'primary',
+      run: () => { onHire(dept.id, type); onShowToast((type === 'specialist' ? 'Specialist' : 'Consultant') + ' hired in ' + dept.name + '.') },
+    })
+  }
+
+  const doFire = (type) => {
+    askConfirm({
+      title: 'Confirm fire',
+      body: 'Are you sure you want to fire 1 ' + type + ' from ' + dept.name + '? Firing reduces your reputation by 1.',
+      confirmLabel: 'Yes, fire',
+      tone: 'danger',
+      run: () => { onFire(dept.id, type); onShowToast((type === 'specialist' ? 'Specialist' : 'Consultant') + ' fired from ' + dept.name + '.') },
+    })
+  }
 
   const handleSubmitTransfer = () => {
     if (!transferTarget) { onShowToast('Please select a destination department.'); return }
@@ -21,9 +57,18 @@ export default function DepartmentDetailScreen({ dept, gs, onHire, onFire, onTra
         (transferType === 'consultant' && consultants === 0)) {
       onShowToast('No ' + transferType + 's in ' + dept.name + ' to transfer.'); return
     }
-    onTransfer(dept.id, transferType, transferTarget)
-    setShowTransfer(false)
-    setTransferTarget('')
+    const targetName = DEPARTMENTS_DATA.find((d) => d.id === transferTarget)?.name || transferTarget
+    askConfirm({
+      title: 'Confirm transfer',
+      body: 'Are you sure you want to transfer 1 ' + transferType + ' from ' + dept.name + ' to ' + targetName + '?',
+      confirmLabel: 'Yes, transfer',
+      tone: 'primary',
+      run: () => {
+        onTransfer(dept.id, transferType, transferTarget)
+        setShowTransfer(false)
+        setTransferTarget('')
+      },
+    })
   }
 
   return (
@@ -35,8 +80,8 @@ export default function DepartmentDetailScreen({ dept, gs, onHire, onFire, onTra
         title="Department"
         steps={[
           'Hiring adds an employee and increases your fixed expenses each quarter.',
+          'You will be asked to confirm every hire, fire, and transfer.',
           'Firing reduces your reputation by 1 per employee - fire only when necessary.',
-          'Transfer moves an employee to another department for free.',
         ]}
       />
 
@@ -57,6 +102,17 @@ export default function DepartmentDetailScreen({ dept, gs, onHire, onFire, onTra
           <p style={{ fontSize: 14, color: 'var(--c-text-muted)', maxWidth: 600 }}>{dept.description}</p>
         </div>
       </div>
+
+      {!hasHr && dept.id !== 'hr' && (
+        <div style={{
+          background: 'var(--c-error-bg)', border: '1px solid #fca5a5',
+          color: 'var(--c-error)', padding: '10px 14px', borderRadius: 'var(--r-md)',
+          fontSize: 13, marginBottom: 'var(--sp-4)',
+        }}>
+          You need to hire an HR first before hiring people for other departments.
+          Go to the HR department to make the first HR hire.
+        </div>
+      )}
 
       <div className="dept-detail-grid">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-5)' }}>
@@ -84,16 +140,18 @@ export default function DepartmentDetailScreen({ dept, gs, onHire, onFire, onTra
               label="Specialists"
               count={specialists}
               costLabel={'$' + GAME_CONFIG.specialistCostPerQuarter.toLocaleString() + '/qtr each'}
-              onHire={() => { onHire(dept.id, 'specialist'); onShowToast('Specialist hired in ' + dept.name + '.') }}
-              onFire={() => { onFire(dept.id, 'specialist'); onShowToast('Specialist fired from ' + dept.name + '.') }}
+              onHire={() => doHire('specialist')}
+              onFire={() => doFire('specialist')}
+              hireDisabled={!hasHr && dept.id !== 'hr'}
             />
             <div style={{ height: 1, background: 'var(--c-border)', margin: '12px 0' }} />
             <StaffRow
               label="Consultants"
               count={consultants}
               costLabel={'$' + GAME_CONFIG.consultantCostPerQuarter.toLocaleString() + '/qtr each'}
-              onHire={() => { onHire(dept.id, 'consultant'); onShowToast('Consultant hired in ' + dept.name + '.') }}
-              onFire={() => { onFire(dept.id, 'consultant'); onShowToast('Consultant fired from ' + dept.name + '.') }}
+              onHire={() => doHire('consultant')}
+              onFire={() => doFire('consultant')}
+              hireDisabled={!hasHr && dept.id !== 'hr'}
             />
             <div style={{ marginTop: 16, padding: '10px 0', borderTop: '1px solid var(--c-border)', display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ fontSize: 13, color: 'var(--c-text-muted)' }}>Total staff</span>
@@ -154,6 +212,18 @@ export default function DepartmentDetailScreen({ dept, gs, onHire, onFire, onTra
           </div>
         </div>
       </div>
+
+      {confirm && (
+        <ConfirmDialog
+          open
+          title={confirm.title}
+          body={confirm.body}
+          confirmLabel={confirm.confirmLabel}
+          tone={confirm.tone}
+          onConfirm={runConfirm}
+          onCancel={() => setConfirm(null)}
+        />
+      )}
     </div>
   )
 }
@@ -167,7 +237,7 @@ function InfoRow({ label, value }) {
   )
 }
 
-function StaffRow({ label, count, costLabel, onHire, onFire }) {
+function StaffRow({ label, count, costLabel, onHire, onFire, hireDisabled }) {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -176,7 +246,7 @@ function StaffRow({ label, count, costLabel, onHire, onFire }) {
       </div>
       <div style={{ fontSize: 11, color: 'var(--c-text-muted)', marginBottom: 8 }}>{costLabel}</div>
       <div style={{ display: 'flex', gap: 8 }}>
-        <button className="btn btn--primary btn--sm" style={{ flex: 1 }} onClick={onHire}>+ Hire</button>
+        <button className="btn btn--primary btn--sm" style={{ flex: 1, opacity: hireDisabled ? 0.5 : 1 }} onClick={onHire} disabled={hireDisabled}>+ Hire</button>
         <button className="btn btn--secondary btn--sm" style={{ flex: 1 }} onClick={onFire} disabled={count === 0}>- Fire</button>
       </div>
     </div>
