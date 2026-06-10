@@ -74,10 +74,10 @@ export default function ActiveProjectsScreen({ gs, onGoBack, onOpenActive }) {
                 </div>
 
                 <div className="active-proj-card__grid">
-                  <Stat label="Cost paid"      value={`$${p.cost.toLocaleString()}`} />
-                  <Stat label="Expected revenue" value={`$${p.revenue.toLocaleString()}`} positive />
+                  <Stat label="Cost paid"      value={`${p.cost.toLocaleString()} Ħ`} />
+                  <Stat label="Expected revenue" value={`${p.revenue.toLocaleString()} Ħ`} positive />
                   <Stat label="Reputation impact" value={`+${p.reputationImpact}`} />
-                  <Stat label="Extra cost so far" value={`$${(p.extraCosts ?? 0).toLocaleString()}`} negative={p.extraCosts > 0} />
+                  <Stat label="Extra cost so far" value={`${(p.extraCosts ?? 0).toLocaleString()} Ħ`} negative={p.extraCosts > 0} />
                 </div>
               </button>
             )

@@ -16,7 +16,7 @@ export const SMART_TIPS = {
 
   /** Shown on: Department Detail, Home department interactions */
   department: [
-    'Do not accept a project just because it has high revenue. Check whether you can deliver it with your active team.',
+    'Do not accept a project just because it has high revenue. Check whether you can deliver it with your active department.',
     'Use Resources, Studio, and Gamification wisely on event-style projects. They often unlock high-value briefs when combined well.',
     'Watch department costs over time. One expensive department can quietly reduce your yearly net profit.',
     'If a project has many moving parts, hire before you accept it. Late hiring often costs more than early planning.',
@@ -26,7 +26,7 @@ export const SMART_TIPS = {
   /** Shown on: Finance / Quarter Center, Year Summary, Final Report */
   finance: [
     'Use the finance screen every quarter, not only at year end. Small mistakes grow quickly over multiple rounds.',
-    'Track which departments you use most and least. Repeated underuse may mean you hired too early or staffed the wrong teams.',
+    'Track which departments you use most and least. Repeated underuse may mean you hired too early or staffed the wrong departments.',
     'Delivered-on-time projects build a stronger company than rushed projects with penalties or complaints.',
     'Balance short-term wins and long-term growth. Some choices improve this quarter, while others strengthen the company over several years.',
     'The best strategy is not only earning more. It is earning well, spending carefully, and keeping reputation high.',

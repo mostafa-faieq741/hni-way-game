@@ -17,7 +17,7 @@ export default function YearSummaryScreen({ gs, completedYear, onContinue }) {
 
   // Strategic insight logic
   const insight = gs.netProfit >= 50_000
-    ? 'Strong financial performance. Your department investments are paying off. Continue building your team for next year.'
+    ? 'Strong financial performance. Your department investments are paying off. Continue building your department for next year.'
     : gs.netProfit >= 0
       ? 'Solid foundations. You broke even or made a small profit. Focus on securing higher-value projects next year to grow cash reserves.'
       : 'Cash pressure is real. Review your fixed costs and consider whether all active departments are earning their keep.'
@@ -51,9 +51,9 @@ export default function YearSummaryScreen({ gs, completedYear, onContinue }) {
 
       {/* KPI grid */}
       <div className="summary-kpi-grid" style={{ marginBottom: 'var(--sp-6)' }}>
-        <KpiCard label="Total Revenue" value={`$${gs.totalRevenue.toLocaleString()}`} positive />
-        <KpiCard label="Total Expenses" value={`$${gs.totalCosts.toLocaleString()}`} />
-        <KpiCard label="Net Profit" value={`$${gs.netProfit.toLocaleString()}`} positive={gs.netProfit >= 0} negative={gs.netProfit < 0} />
+        <KpiCard label="Total Revenue" value={`${gs.totalRevenue.toLocaleString()} Ħ`} positive />
+        <KpiCard label="Total Expenses" value={`${gs.totalCosts.toLocaleString()} Ħ`} />
+        <KpiCard label="Net Profit" value={`${gs.netProfit.toLocaleString()} Ħ`} positive={gs.netProfit >= 0} negative={gs.netProfit < 0} />
         <KpiCard label="Reputation" value={gs.reputation} />
         <KpiCard label="Employees" value={totalEmployees} />
         <KpiCard label="Active Projects" value={gs.activeProjects.length} />

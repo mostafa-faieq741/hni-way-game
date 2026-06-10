@@ -6,11 +6,12 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react'
 import HNILogo from '../../components/HNILogo.jsx'
 import GameNav from '../../components/GameNav.jsx'
-import QuarterTimer from '../../components/QuarterTimer.jsx'
+import SessionTimer from '../../components/SessionTimer.jsx'
 import GlossaryModal from '../../components/GlossaryModal.jsx'
 import LeaderboardModal from '../../components/LeaderboardModal.jsx'
 import EventModal from '../../components/EventModal.jsx'
 import StatFloater from '../../components/StatFloater.jsx'
+import EndQuarterModal from '../../components/EndQuarterModal.jsx'
 
 import HomeScreen             from './HomeScreen.jsx'
 import ForecastScreen         from './ForecastScreen.jsx'
@@ -31,7 +32,8 @@ import {
   resolveProjectsForQuarter,
   computeFixedExpenses,
 } from '../../data/projectLifecycle.js'
-import { pickEventForQuarter } from '../../data/events.js'
+import { drawEvents } from '../../data/events.js'
+import { buildQuarterBriefs } from '../../data/projects.js'
 
 const TAB_TO_SCREEN = { home: 'home', forecast: 'forecast', finance: 'finance' }
 const HIDE_NAV_ON = new Set(['year-summary', 'final-report'])
@@ -60,13 +62,18 @@ function saveToLocalStorage(state) {
       acceptedCount: state.acceptedCount,
       rejectedCount: state.rejectedCount,
       rejectedIds: state.rejectedIds,
+      quarterRejectedIds: state.quarterRejectedIds,
+      quarterBriefIds: state.quarterBriefIds,
       completedProjects: state.completedProjects,
       forecastPurchasedByYear: state.forecastPurchasedByYear,
       yearSummaries: state.yearSummaries,
       eventsTriggered: state.eventsTriggered,
+      recurringExpenses: state.recurringExpenses,
+      eventBag: state.eventBag,
       lastResolution: state.lastResolution,
       playerId: state.playerId,
       playerName: state.playerName,
+      sessionStartedAt: state.sessionStartedAt,
     }
     localStorage.setItem(DEMO_SAVE_KEY, JSON.stringify(snapshot))
   } catch (e) {
@@ -101,12 +108,18 @@ function buildInitialGs(setupResult) {
     acceptedCount:  0,
     rejectedCount:  0,
     rejectedIds:   [],
+    quarterRejectedIds: [],
+    quarterBriefIds: [],
     completedProjects: [],
     forecastPurchasedByYear: {},
     eventsTriggered:        [],
+    recurringExpenses:      0,
+    eventBag:               [],
     yearSummaries:          [],
     lastResolution:         null,
+    sessionStartedAt:       Date.now(),
   }
+  base.quarterBriefIds = buildQuarterBriefs(base, [])
   if (!setupResult?.isNewPlayer) {
     const saved = loadFromLocalStorage()
     if (saved) return { ...base, ...saved }
@@ -150,6 +163,39 @@ function hasHrStaff(prev) {
   return ((hr?.specialists || 0) + (hr?.consultants || 0)) > 0
 }
 
+// Apply a staff change from an event effect.
+// delta > 0: add one staff to staff.deptId (default 'ld'), type default specialist.
+// delta < 0: remove one staff from the first department that has any.
+function applyStaffEffect(departments, staff) {
+  const delta = staff?.delta || 0
+  if (delta === 0) return { departments, msg: null }
+  if (delta > 0) {
+    const deptId = staff.deptId || 'ld'
+    const key = staff.type === 'consultant' ? 'consultants' : 'specialists'
+    return {
+      departments: departments.map((d) =>
+        d.id === deptId ? { ...d, [key]: (d[key] || 0) + 1 } : d
+      ),
+      msg: '+1 employee',
+    }
+  }
+  // removal: take from the first department that has a specialist, else a consultant
+  let removed = false
+  let out = departments.map((d) => {
+    if (removed) return d
+    if ((d.specialists || 0) > 0) { removed = true; return { ...d, specialists: d.specialists - 1 } }
+    return d
+  })
+  if (!removed) {
+    out = departments.map((d) => {
+      if (removed) return d
+      if ((d.consultants || 0) > 0) { removed = true; return { ...d, consultants: d.consultants - 1 } }
+      return d
+    })
+  }
+  return { departments: removed ? out : departments, msg: removed ? '-1 employee' : null }
+}
+
 export default function GameContainer({ gameSetupResult }) {
   const [gs, setGs] = useState(() => buildInitialGs(gameSetupResult))
 
@@ -160,7 +206,16 @@ export default function GameContainer({ gameSetupResult }) {
   const [completedYear, setCompletedYear] = useState(null)
   const [showGlossary, setShowGlossary] = useState(false)
   const [showLeaderboard, setShowLeaderboard] = useState(false)
-  const [pendingEvent, setPendingEvent] = useState(null)
+  const [eventQueue, setEventQueue] = useState([])
+  const [lossReason, setLossReason] = useState(null)
+
+  // Explicit end-of-quarter flow: preview before commit, recap after.
+  const [endPreviewOpen, setEndPreviewOpen] = useState(false)
+  const [quarterSummary, setQuarterSummary] = useState(null)
+  // Per-quarter guidance: which "This Quarter" steps the player has touched.
+  const [quarterProgress, setQuarterProgress] = useState({ forecast: false, accept: false, staff: false })
+  // One-time 'wrap up' warning shown when little session time remains.
+  const [showTimeWarning, setShowTimeWarning] = useState(false)
 
   const [toast, setToast] = useState(null)
   const toastTimer = useRef(null)
@@ -181,6 +236,21 @@ export default function GameContainer({ gameSetupResult }) {
   useEffect(() => () => clearTimeout(toastTimer.current), [])
   useEffect(() => { saveToLocalStorage(gs) }, [gs])
 
+  // Immediate-loss thresholds: bankruptcy or reputation collapse ends the game.
+  useEffect(() => {
+    if (lossReason || gameScreen === 'final-report') return
+    let reason = null
+    if (gs.cash < GAME_CONFIG.loseCashFloor) reason = 'cash'
+    else if (gs.reputation <= GAME_CONFIG.loseReputationFloor) reason = 'reputation'
+    if (reason) {
+      setLossReason(reason)
+      setEndPreviewOpen(false)
+      setQuarterSummary(null)
+      setEventQueue([])
+      setGameScreen('final-report')
+    }
+  }, [gs.cash, gs.reputation, gameScreen, lossReason])
+
   const updateGs = useCallback((patch) => {
     setGs((prev) => ({ ...prev, ...patch }))
   }, [])
@@ -190,6 +260,9 @@ export default function GameContainer({ gameSetupResult }) {
     if (extra.dept)          setSelectedDept(extra.dept)
     if (extra.project)       setSelectedProject(extra.project)
     if (extra.activeProject) setSelectedActiveProject(extra.activeProject)
+    // Mark "This Quarter" steps as visited so the Home checklist reflects progress.
+    if (screen === 'forecast')       setQuarterProgress((p) => ({ ...p, forecast: true }))
+    if (screen === 'sales-requests') setQuarterProgress((p) => ({ ...p, accept: true }))
   }, [])
 
   const goHome = useCallback(() => setGameScreen('home'), [])
@@ -197,12 +270,13 @@ export default function GameContainer({ gameSetupResult }) {
   const handleSubmitQuarter = useCallback(() => {
     setGs((prev) => {
       const fixedExpenses = computeFixedExpenses(prev.departments)
+      const recurring = prev.recurringExpenses || 0
       const r = resolveProjectsForQuarter(prev)
 
-      const newCash = prev.cash - fixedExpenses + r.revenueGained - r.extraCostsAdded
+      const newCash = prev.cash - fixedExpenses - recurring + r.revenueGained - r.extraCostsAdded
       const newTotalRevenue = prev.totalRevenue + r.revenueGained
-      const newTotalCosts = prev.totalCosts + fixedExpenses + r.extraCostsAdded
-      const newReputation = Math.max(0, Math.min(GAME_CONFIG.maxReputation, prev.reputation + r.reputationDelta))
+      const newTotalCosts = prev.totalCosts + fixedExpenses + recurring + r.extraCostsAdded
+      const newReputation = Math.max(GAME_CONFIG.loseReputationFloor, Math.min(GAME_CONFIG.maxReputation, prev.reputation + r.reputationDelta))
       const newNetProfit = newTotalRevenue - newTotalCosts
 
       const newOverall = prev.overallQuarter + 1
@@ -221,6 +295,7 @@ export default function GameContainer({ gameSetupResult }) {
 
       const resolution = {
         fixedExpenses,
+        recurringExpenses: recurring,
         revenueGained: r.revenueGained,
         extraCostsAdded: r.extraCostsAdded,
         reputationDelta: r.reputationDelta,
@@ -228,15 +303,16 @@ export default function GameContainer({ gameSetupResult }) {
         overdueCodes: r.updatedProjects.filter((p) => p.status === 'overdue').map((p) => p.code),
       }
 
-      if (fixedExpenses > 0)     pushFloat('-$' + fixedExpenses.toLocaleString() + ' fixed', 'negative')
-      if (r.revenueGained > 0)   pushFloat('+$' + r.revenueGained.toLocaleString() + ' revenue', 'positive')
-      if (r.extraCostsAdded > 0) pushFloat('-$' + r.extraCostsAdded.toLocaleString() + ' overdue', 'negative')
+      if (fixedExpenses > 0)     pushFloat('-' + fixedExpenses.toLocaleString() + ' Ħ fixed', 'negative')
+      if (recurring > 0)         pushFloat('-' + recurring.toLocaleString() + ' Ħ recurring', 'negative')
+      if (r.revenueGained > 0)   pushFloat('+' + r.revenueGained.toLocaleString() + ' Ħ revenue', 'positive')
+      if (r.extraCostsAdded > 0) pushFloat('-' + r.extraCostsAdded.toLocaleString() + ' Ħ overdue', 'negative')
       if (r.reputationDelta !== 0) {
         const sign = r.reputationDelta > 0 ? '+' : ''
         pushFloat(sign + r.reputationDelta + ' rep', r.reputationDelta > 0 ? 'positive' : 'negative')
       }
 
-      return {
+      const newState = {
         ...prev,
         cash: newCash,
         reputation: newReputation,
@@ -251,23 +327,56 @@ export default function GameContainer({ gameSetupResult }) {
         yearSummaries: yearSummary ? [...prev.yearSummaries, yearSummary] : prev.yearSummaries,
         lastResolution: resolution,
       }
+      // Fresh fixed brief set for the new quarter (none while game is over).
+      newState.quarterRejectedIds = gameOver ? prev.quarterRejectedIds : []
+      newState.quarterBriefIds = gameOver ? prev.quarterBriefIds : buildQuarterBriefs(newState, [])
+      return newState
     })
 
     setGs((prev) => {
+      setEndPreviewOpen(false)
+      setQuarterProgress({ forecast: false, accept: false, staff: false })
+      let nextBag = prev.eventBag
       if (prev.overallQuarter >= GAME_CONFIG.totalQuarters && prev.lastResolution) {
         setGameScreen('final-report')
       } else if (prev.yearQuarter === 1 && prev.currentYear > 1) {
         setCompletedYear(prev.currentYear - 1)
         setGameScreen('year-summary')
+        const drawn = drawEvents(prev.eventBag, 2)
+        nextBag = drawn.nextBag
+        setEventQueue(drawn.events)
       } else {
         setGameScreen('home')
-        showToast('Quarter resolved. Now in Q' + prev.yearQuarter + ', Year ' + prev.currentYear + '.')
-        const ev = pickEventForQuarter(prev)
-        if (ev) setPendingEvent(ev)
+        // Replace the old fading toast with an explicit "what changed" summary moment.
+        setQuarterSummary(prev.lastResolution)
+        const drawn = drawEvents(prev.eventBag, 2)
+        nextBag = drawn.nextBag
+        setEventQueue(drawn.events)
       }
-      return prev
+      return { ...prev, eventBag: nextBag }
     })
   }, [showToast, pushFloat])
+
+  // Open the end-of-quarter preview (the explicit, deliberate commit point).
+  const requestEndQuarter = useCallback(() => setEndPreviewOpen(true), [])
+  const confirmEndQuarter = useCallback(() => {
+    setEndPreviewOpen(false)
+    handleSubmitQuarter()
+  }, [handleSubmitQuarter])
+
+  // Hard session cap (GAME_CONFIG.sessionMinutes): ends the game gracefully
+  // at the final report so total play time never exceeds the limit.
+  const handleTimeUp = useCallback(() => {
+    setEndPreviewOpen(false)
+    setQuarterSummary(null)
+    setEventQueue([])
+    setShowTimeWarning(false)
+    setGameScreen('final-report')
+    showToast('Time is up - here is your final report.')
+  }, [showToast])
+
+  // Surface the wrap-up warning once, when ~2 minutes remain.
+  const handleTimeWarn = useCallback(() => setShowTimeWarning(true), [])
 
   const handleAcceptProject = useCallback((template) => {
     setGs((prev) => {
@@ -280,11 +389,11 @@ export default function GameContainer({ gameSetupResult }) {
         return prev
       }
       if (prev.cash < template.cost) {
-        showToast('Need $' + template.cost.toLocaleString() + ' cash to accept this project.')
+        showToast('Need ' + template.cost.toLocaleString() + ' Ħ cash to accept this project.')
         return prev
       }
       const active = makeActiveProject(template, prev.overallQuarter)
-      pushFloat('-$' + template.cost.toLocaleString() + ' cash', 'negative')
+      pushFloat('-' + template.cost.toLocaleString() + ' Ħ cash', 'negative')
       pushFloat('+1 active project', 'neutral')
       return {
         ...prev,
@@ -298,36 +407,27 @@ export default function GameContainer({ gameSetupResult }) {
 
   const handleRejectProject = useCallback((template) => {
     setGs((prev) => {
-      const ids = prev.rejectedIds || []
-      if (ids.includes(template.id)) return prev
+      const qr = prev.quarterRejectedIds || []
+      if (qr.includes(template.id)) return prev
       return {
         ...prev,
         rejectedCount: prev.rejectedCount + 1,
-        rejectedIds: [...ids, template.id],
+        rejectedIds: [...(prev.rejectedIds || []), template.id],
+        quarterRejectedIds: [...qr, template.id],
       }
     })
   }, [])
 
   const handleHire = useCallback((deptId, type) => {
-    // HR gate: enforce that the first hire is HR
-    let blocked = false
-    setGs((prev) => {
-      if (deptId !== 'hr' && !hasHrStaff(prev)) {
-        blocked = true
-        return prev
-      }
-      return prev
-    })
-    if (blocked) {
-      showToast('Hire an HR employee first before hiring for other departments.')
-      return
-    }
-
     const key = type === 'specialist' ? 'specialists' : 'consultants'
     const cost = type === 'specialist' ? GAME_CONFIG.specialistCostPerQuarter : GAME_CONFIG.consultantCostPerQuarter
     pushFloat('+1 employee', 'positive')
-    pushFloat('+$' + cost.toLocaleString() + ' fixed/qtr', 'negative')
-    setGs((prev) => patchDeptStaffing(prev, deptId, key, 1))
+    pushFloat('+' + cost.toLocaleString() + ' Ħ fixed/qtr', 'negative')
+    setGs((prev) => {
+      const next = patchDeptStaffing(prev, deptId, key, 1)
+      return { ...next, quarterBriefIds: buildQuarterBriefs(next, next.quarterBriefIds || []) }
+    })
+    setQuarterProgress((p) => ({ ...p, staff: true }))
   }, [pushFloat, showToast])
 
   const handleFire = useCallback((deptId, type) => {
@@ -372,6 +472,7 @@ export default function GameContainer({ gameSetupResult }) {
   const handleRestart = useCallback(() => {
     try { localStorage.removeItem(DEMO_SAVE_KEY) } catch {}
     setGs(buildInitialGs({ player: gameSetupResult?.player, isNewPlayer: true }))
+    setLossReason(null)
     setGameScreen('home')
     setSelectedDept(null)
     setSelectedProject(null)
@@ -381,28 +482,34 @@ export default function GameContainer({ gameSetupResult }) {
   }, [gameSetupResult, showToast])
 
   const handleEventResolve = useCallback((option) => {
-    if (!pendingEvent) return
     setGs((prev) => {
       const eff = option.effect || {}
+      const next = { ...prev }
       if (eff.cash) {
         const sign = eff.cash > 0 ? '+' : '-'
-        pushFloat(sign + '$' + Math.abs(eff.cash).toLocaleString() + ' cash', eff.cash > 0 ? 'positive' : 'negative')
+        pushFloat(sign + '' + Math.abs(eff.cash).toLocaleString() + ' Ħ cash', eff.cash > 0 ? 'positive' : 'negative')
+        next.cash = prev.cash + eff.cash
       }
       if (eff.reputation) {
         const sign = eff.reputation > 0 ? '+' : ''
         pushFloat(sign + eff.reputation + ' rep', eff.reputation > 0 ? 'positive' : 'negative')
+        next.reputation = Math.max(GAME_CONFIG.loseReputationFloor, Math.min(GAME_CONFIG.maxReputation, prev.reputation + eff.reputation))
       }
-      const triggered = prev.eventsTriggered || []
-      return {
-        ...prev,
-        cash: prev.cash + (eff.cash || 0),
-        reputation: Math.max(0, Math.min(GAME_CONFIG.maxReputation, prev.reputation + (eff.reputation || 0))),
-        eventsTriggered: [...triggered, pendingEvent.id],
+      if (eff.fixedExpenses) {
+        const sign = eff.fixedExpenses > 0 ? '+' : '-'
+        pushFloat(sign + '' + Math.abs(eff.fixedExpenses).toLocaleString() + ' Ħ/qtr', eff.fixedExpenses > 0 ? 'negative' : 'positive')
+        next.recurringExpenses = Math.max(0, (prev.recurringExpenses || 0) + eff.fixedExpenses)
       }
+      if (eff.staff && eff.staff.delta) {
+        const { departments, msg } = applyStaffEffect(prev.departments, eff.staff)
+        next.departments = departments
+        if (msg) pushFloat(msg, eff.staff.delta > 0 ? 'positive' : 'negative')
+      }
+      return next
     })
     showToast(option.toast || 'Event resolved.')
-    setPendingEvent(null)
-  }, [pendingEvent, pushFloat, showToast])
+    setEventQueue((q) => q.slice(1))
+  }, [pushFloat, showToast])
 
   // Bottom tabs visible everywhere inside the game except the year summary and final report
   const showNav = !HIDE_NAV_ON.has(gameScreen)
@@ -418,13 +525,16 @@ export default function GameContainer({ gameSetupResult }) {
         <div className="game-topbar__badge">
           Q{gs.yearQuarter} - Year {gs.currentYear}
         </div>
-        <QuarterTimer
-          quarterKey={quarterKey}
-          onExpire={handleSubmitQuarter}
-          paused={!!pendingEvent || gameScreen === 'year-summary' || gameScreen === 'final-report'}
+        <SessionTimer
+          startedAt={gs.sessionStartedAt}
+          totalSeconds={GAME_CONFIG.sessionMinutes * 60}
+          onExpire={handleTimeUp}
+          onWarn={handleTimeWarn}
+          warnAtSeconds={120}
+          stopped={gameScreen === 'final-report'}
         />
         <div className="game-topbar__player">
-          {gs.playerName} - ${gs.cash.toLocaleString()} - Rep {gs.reputation}
+          {gs.playerName} - {gs.cash.toLocaleString()} Ħ - Rep {gs.reputation}
         </div>
         <button className="game-topbar__glossary" onClick={() => setShowLeaderboard(true)} title="Open Leaderboard">
           Leaderboard
@@ -434,6 +544,16 @@ export default function GameContainer({ gameSetupResult }) {
         </button>
       </div>
 
+      {showTimeWarning && gameScreen !== 'final-report' && (
+        <div className="time-warning" role="alert">
+          <span className="time-warning__icon" aria-hidden="true">!</span>
+          <span className="time-warning__text">
+            <strong>About 2 minutes left.</strong> Wrap up your current quarter and press End Quarter - the game closes automatically when the timer hits zero.
+          </span>
+          <button className="time-warning__close" onClick={() => setShowTimeWarning(false)} aria-label="Dismiss warning">Dismiss</button>
+        </div>
+      )}
+
       <div className="game-content">
         {gameScreen === 'home' && (
           <HomeScreen
@@ -441,7 +561,8 @@ export default function GameContainer({ gameSetupResult }) {
             onNavigate={navigate}
             onHire={handleHire}
             onShowToast={showToast}
-            onSubmitQuarter={handleSubmitQuarter}
+            onRequestEndQuarter={requestEndQuarter}
+            quarterProgress={quarterProgress}
           />
         )}
 
@@ -450,7 +571,7 @@ export default function GameContainer({ gameSetupResult }) {
         )}
 
         {gameScreen === 'finance' && (
-          <FinanceScreen gs={gs} onSubmitQuarter={handleSubmitQuarter} onShowToast={showToast} />
+          <FinanceScreen gs={gs} onRequestEndQuarter={requestEndQuarter} onShowToast={showToast} />
         )}
 
         {gameScreen === 'dept-detail' && selectedDept && (
@@ -498,7 +619,6 @@ export default function GameContainer({ gameSetupResult }) {
             project={selectedActiveProject}
             gs={gs}
             isAlreadyActive
-            onGoBack={() => setGameScreen('active-projects')}
             onGoToSalesRequests={() => setGameScreen('sales-requests')}
             onAccept={() => {}}
             onReject={() => {}}
@@ -511,7 +631,7 @@ export default function GameContainer({ gameSetupResult }) {
         )}
 
         {gameScreen === 'final-report' && (
-          <FinalReportScreen gs={gs} onRestart={handleRestart} />
+          <FinalReportScreen gs={gs} onRestart={handleRestart} lossReason={lossReason} />
         )}
       </div>
 
@@ -535,8 +655,26 @@ export default function GameContainer({ gameSetupResult }) {
         }}
       />
 
-      {pendingEvent && (
-        <EventModal event={pendingEvent} onResolve={handleEventResolve} />
+      {eventQueue.length > 0 && (
+        <EventModal event={eventQueue[0]} onResolve={handleEventResolve} />
+      )}
+
+      {endPreviewOpen && (
+        <EndQuarterModal
+          mode="preview"
+          gs={gs}
+          onConfirm={confirmEndQuarter}
+          onCancel={() => setEndPreviewOpen(false)}
+        />
+      )}
+
+      {quarterSummary && eventQueue.length === 0 && (
+        <EndQuarterModal
+          mode="summary"
+          gs={gs}
+          summary={quarterSummary}
+          onClose={() => setQuarterSummary(null)}
+        />
       )}
 
       <StatFloater floats={floats} />

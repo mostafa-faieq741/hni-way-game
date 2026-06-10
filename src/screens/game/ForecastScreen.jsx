@@ -20,7 +20,7 @@ export default function ForecastScreen({ gs, onUpdateGs, onShowToast, onPushFloa
       totalCosts: gs.totalCosts + GAME_CONFIG.forecastCostPerYear,
       forecastPurchasedByYear: { ...gs.forecastPurchasedByYear, [gs.currentYear]: true },
     })
-    onPushFloat?.('-$' + GAME_CONFIG.forecastCostPerYear.toLocaleString() + ' cash', 'negative')
+    onPushFloat?.('-' + GAME_CONFIG.forecastCostPerYear.toLocaleString() + ' Ħ cash', 'negative')
     onShowToast?.('Forecast purchased! Insights are unlocked for this year.')
   }
 
@@ -30,7 +30,7 @@ export default function ForecastScreen({ gs, onUpdateGs, onShowToast, onPushFloa
         screenId="forecast"
         title="Forecast"
         steps={[
-          'Buy the forecast for $15,000 once per year.',
+          'Buy the forecast for 15,000 Ħ once per year.',
           'It reveals the main market trend and a staffing focus suggestion.',
           'Use it before making big hires or accepting many projects.',
         ]}
@@ -53,7 +53,7 @@ export default function ForecastScreen({ gs, onUpdateGs, onShowToast, onPushFloa
             {!alreadyPurchased ? (
               <div>
                 <div style={{ fontFamily: 'var(--f-heading)', fontSize: 24, fontWeight: 800, color: 'var(--c-primary)', marginBottom: 8 }}>
-                  ${GAME_CONFIG.forecastCostPerYear.toLocaleString()}
+                  {GAME_CONFIG.forecastCostPerYear.toLocaleString()} Ħ
                 </div>
                 <button
                   className="btn btn--primary btn--md"
@@ -96,7 +96,7 @@ export default function ForecastScreen({ gs, onUpdateGs, onShowToast, onPushFloa
             Forecast Locked
           </div>
           <div style={{ fontSize: 14, maxWidth: 360, margin: '0 auto' }}>
-            Purchase the Forecast for ${GAME_CONFIG.forecastCostPerYear.toLocaleString()} to reveal this year main trend and strategic advantage.
+            Purchase the Forecast for {GAME_CONFIG.forecastCostPerYear.toLocaleString()} Ħ to reveal this year main trend and strategic advantage.
           </div>
         </div>
       )}

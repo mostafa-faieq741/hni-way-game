@@ -1,25 +1,16 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { GAME_CONFIG } from '../../data/gameConfig.js'
 import SmartPlayTip from '../../components/SmartPlayTip.jsx'
 import TutorialOverlay from '../../components/TutorialOverlay.jsx'
-import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import { computeFixedExpenses } from '../../data/projectLifecycle.js'
 
-export default function FinanceScreen({ gs, onSubmitQuarter, onShowToast }) {
-  const [confirming, setConfirming] = useState(false)
-
+export default function FinanceScreen({ gs, onRequestEndQuarter }) {
   const fixedExpenses = computeFixedExpenses(gs.departments)
   const endingThisQtr = gs.activeProjects.filter((p) => p.quartersLeft <= 1 || p.status === 'overdue')
   const expectedRevenue = endingThisQtr.reduce((s, p) => s + p.revenue, 0)
   const expectedExtraCosts = gs.activeProjects
     .filter((p) => p.status === 'overdue')
     .reduce((s, p) => s + Math.round(p.cost * 0.10), 0)
-
-  const handleSubmit = () => {
-    setConfirming(false)
-    onSubmitQuarter()
-    onShowToast?.('Quarter submitted. Reviewing the resolution panel...')
-  }
 
   const last = gs.lastResolution
 
@@ -29,9 +20,9 @@ export default function FinanceScreen({ gs, onSubmitQuarter, onShowToast }) {
         screenId="finance"
         title="Finance / Quarter Center"
         steps={[
-          'Submit Quarter resolves everything: fixed expenses paid, revenue auto-collected for delivered projects, penalties applied.',
+          'End Quarter resolves everything: fixed expenses paid, revenue auto-collected for delivered projects, penalties applied.',
           'You do not need to collect revenue manually.',
-          'You will be asked to confirm before the quarter is submitted.',
+          'You will see a full preview of what changes before anything is committed.',
         ]}
       />
 
@@ -47,8 +38,8 @@ export default function FinanceScreen({ gs, onSubmitQuarter, onShowToast }) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 'var(--sp-3)', flexWrap: 'wrap' }}>
-            <button className="btn btn--primary btn--md" onClick={() => setConfirming(true)}>
-              Submit Quarter
+            <button className="btn btn--primary btn--md" onClick={onRequestEndQuarter}>
+              End Quarter
             </button>
           </div>
         </div>
@@ -60,11 +51,11 @@ export default function FinanceScreen({ gs, onSubmitQuarter, onShowToast }) {
             <div className="game-section-title" style={{ marginBottom: 'var(--sp-4)' }}>
               Quarter Entry
             </div>
-            <KpiRow label="Fixed Expenses (Staff)" value={'-$' + fixedExpenses.toLocaleString()} />
+            <KpiRow label="Fixed Expenses (Staff)" value={'-' + fixedExpenses.toLocaleString() + ' Ħ'} />
             <KpiRow label="Projects ending this quarter" value={endingThisQtr.length} />
-            <KpiRow label="Revenue if all deliver" value={'$' + expectedRevenue.toLocaleString()} positive />
+            <KpiRow label="Revenue if all deliver" value={'' + expectedRevenue.toLocaleString() + ' Ħ'} positive />
             {expectedExtraCosts > 0 && (
-              <KpiRow label="Overdue penalty risk" value={'-$' + expectedExtraCosts.toLocaleString()} />
+              <KpiRow label="Overdue penalty risk" value={'-' + expectedExtraCosts.toLocaleString() + ' Ħ'} />
             )}
           </div>
 
@@ -89,7 +80,7 @@ export default function FinanceScreen({ gs, onSubmitQuarter, onShowToast }) {
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontFamily: 'var(--f-heading)', fontSize: 14, fontWeight: 700, color: proj.status === 'overdue' ? 'var(--c-error)' : 'var(--c-success)' }}>
-                      ${proj.revenue.toLocaleString()}
+                      {proj.revenue.toLocaleString()} Ħ
                     </div>
                   </div>
                 </div>
@@ -101,9 +92,9 @@ export default function FinanceScreen({ gs, onSubmitQuarter, onShowToast }) {
             <div className="card" style={{ borderLeft: '4px solid var(--c-primary)' }}>
               <div className="game-section-title" style={{ marginBottom: 'var(--sp-3)' }}>Last Quarter Resolution</div>
               <ul style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13 }}>
-                <li>Fixed expenses paid: <strong>-${last.fixedExpenses.toLocaleString()}</strong></li>
-                {last.revenueGained > 0 && <li>Revenue collected: <strong style={{ color: 'var(--c-success)' }}>+${last.revenueGained.toLocaleString()}</strong></li>}
-                {last.extraCostsAdded > 0 && <li>Overdue penalties: <strong style={{ color: 'var(--c-error)' }}>-${last.extraCostsAdded.toLocaleString()}</strong></li>}
+                <li>Fixed expenses paid: <strong>-{last.fixedExpenses.toLocaleString()} Ħ</strong></li>
+                {last.revenueGained > 0 && <li>Revenue collected: <strong style={{ color: 'var(--c-success)' }}>+{last.revenueGained.toLocaleString()} Ħ</strong></li>}
+                {last.extraCostsAdded > 0 && <li>Overdue penalties: <strong style={{ color: 'var(--c-error)' }}>-{last.extraCostsAdded.toLocaleString()} Ħ</strong></li>}
                 {last.reputationDelta !== 0 && <li>Reputation change: <strong>{last.reputationDelta > 0 ? '+' : ''}{last.reputationDelta}</strong></li>}
                 {last.deliveredCodes?.length > 0 && <li>Delivered: {last.deliveredCodes.join(', ')}</li>}
                 {last.overdueCodes?.length > 0 && <li>Overdue: {last.overdueCodes.join(', ')}</li>}
@@ -117,11 +108,11 @@ export default function FinanceScreen({ gs, onSubmitQuarter, onShowToast }) {
             <div className="game-section-title" style={{ marginBottom: 'var(--sp-4)' }}>
               Year {gs.currentYear} Summary Preview
             </div>
-            <KpiRow label="Total Revenue (YTD)" value={'$' + gs.totalRevenue.toLocaleString()} positive />
-            <KpiRow label="Total Expenses (YTD)" value={'$' + gs.totalCosts.toLocaleString()} />
-            <KpiRow label="Net Profit (YTD)" value={'$' + gs.netProfit.toLocaleString()} highlight positive={gs.netProfit >= 0} />
+            <KpiRow label="Total Revenue (YTD)" value={'' + gs.totalRevenue.toLocaleString() + ' Ħ'} positive />
+            <KpiRow label="Total Expenses (YTD)" value={'' + gs.totalCosts.toLocaleString() + ' Ħ'} />
+            <KpiRow label="Net Profit (YTD)" value={'' + gs.netProfit.toLocaleString() + ' Ħ'} highlight positive={gs.netProfit >= 0} />
             <KpiRow label="Reputation" value={gs.reputation} />
-            <KpiRow label="Current Cash" value={'$' + gs.cash.toLocaleString()} positive />
+            <KpiRow label="Current Cash" value={'' + gs.cash.toLocaleString() + ' Ħ'} positive />
           </div>
 
           <div className="card">
@@ -158,16 +149,6 @@ export default function FinanceScreen({ gs, onSubmitQuarter, onShowToast }) {
           <SmartPlayTip category="finance" />
         </div>
       </div>
-
-      <ConfirmDialog
-        open={confirming}
-        title="End this quarter?"
-        body={'You are about to resolve Year ' + gs.currentYear + ', Q' + gs.yearQuarter + '. Fixed expenses will be paid, revenue will be collected on delivered projects, and overdue penalties will be applied. Continue?'}
-        confirmLabel="Yes, submit quarter"
-        cancelLabel="Not yet"
-        onConfirm={handleSubmit}
-        onCancel={() => setConfirming(false)}
-      />
     </div>
   )
 }

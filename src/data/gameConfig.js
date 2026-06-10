@@ -15,6 +15,9 @@ export const GAME_CONFIG = {
   consultantCostPerQuarter:   10_000,
   winReputationThreshold:     100,   // must exceed this to qualify for leaderboard
   maxReputation:              200,
+  sessionMinutes:             30,   // hard cap on total play time (minutes)
+  loseCashFloor:              -100_000, // game over if cash drops below this
+  loseReputationFloor:        -20,      // game over if reputation drops to/below this
 }
 
 /** Project level matrix – used for validation and mock data generation */

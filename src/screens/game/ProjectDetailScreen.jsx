@@ -24,14 +24,12 @@ export default function ProjectDetailScreen({
       return
     }
     if (cantAfford) {
-      onShowToast('Need $' + proj.cost.toLocaleString() + ' cash to accept this project.')
+      onShowToast('Need ' + proj.cost.toLocaleString() + ' Ħ cash to accept this project.')
       return
     }
     onAccept(proj)
     setConfirmed('accepted')
-    onShowToast?.(proj.code + ' accepted! Cost paid: $' + proj.cost.toLocaleString() + '.')
-    // Auto-return to the Sales Requests list after a short pause so the
-    // accepted brief no longer appears in the available pool.
+    onShowToast?.(proj.code + ' accepted! Cost paid: ' + proj.cost.toLocaleString() + ' Ħ.')
     setTimeout(() => onGoToSalesRequests?.(), 900)
   }
 
@@ -39,7 +37,6 @@ export default function ProjectDetailScreen({
     onReject(proj)
     setConfirmed('rejected')
     onShowToast?.('Project ' + proj.code + ' rejected.')
-    // After a short pause, go back to the list so the rejected brief is gone
     setTimeout(() => onGoToSalesRequests?.(), 900)
   }
 
@@ -88,7 +85,7 @@ export default function ProjectDetailScreen({
           <div className="alert-box__text">
             <div className="alert-box__label">Heads up</div>
             {atCap && <div>You already have {MAX_ACTIVE_PROJECTS} active projects. Deliver some before accepting more.</div>}
-            {cantAfford && <div>Project cost (${proj.cost.toLocaleString()}) exceeds current cash (${gs.cash.toLocaleString()}).</div>}
+            {cantAfford && <div>Project cost ({proj.cost.toLocaleString()} Ħ) exceeds current cash ({gs.cash.toLocaleString()} Ħ).</div>}
             {!meetsReputation && <div>Your reputation ({gs.reputation}) is below the recommended minimum ({proj.minReputation}). You can still accept, but delivery may slip.</div>}
             <div style={{ marginTop: 6, fontStyle: 'italic' }}>Requirements are checked when the project reaches its planned end quarter.</div>
           </div>
@@ -100,8 +97,8 @@ export default function ProjectDetailScreen({
           <div className="alert-box__text">
             <div className="alert-box__label" style={{ color: 'var(--c-error)' }}>Overdue</div>
             <div>This project has been overdue for {proj.overdueQuarters} quarter(s).</div>
-            <div>Accumulated extra cost: ${(proj.extraCosts || 0).toLocaleString()}.</div>
-            <div>It will deliver as soon as your team meets its requirements.</div>
+            <div>Accumulated extra cost: {(proj.extraCosts || 0).toLocaleString()} Ħ.</div>
+            <div>It will deliver as soon as your department meets its requirements.</div>
           </div>
         </div>
       )}
@@ -124,10 +121,10 @@ export default function ProjectDetailScreen({
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: 11, color: 'var(--c-text-muted)', marginBottom: 2 }}>Revenue</div>
                 <div style={{ fontFamily: 'var(--f-heading)', fontSize: 28, fontWeight: 800, color: 'var(--c-success)' }}>
-                  ${proj.revenue.toLocaleString()}
+                  {proj.revenue.toLocaleString()} Ħ
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--c-text-muted)' }}>
-                  Cost: ${proj.cost.toLocaleString()} - Rep: +{proj.reputationImpact}
+                  Cost: {proj.cost.toLocaleString()} Ħ - Rep: +{proj.reputationImpact}
                 </div>
               </div>
             </div>
@@ -143,9 +140,9 @@ export default function ProjectDetailScreen({
 
           <div className="card">
             <div className="game-section-title" style={{ marginBottom: 'var(--sp-4)' }}>Financial Overview</div>
-            <FinRow label="Revenue" value={'$' + proj.revenue.toLocaleString()} positive />
-            <FinRow label="Project Cost" value={'$' + proj.cost.toLocaleString()} />
-            <FinRow label="Gross Profit" value={'$' + (proj.revenue - proj.cost).toLocaleString()} highlight positive={proj.revenue > proj.cost} />
+            <FinRow label="Revenue" value={'' + proj.revenue.toLocaleString() + ' Ħ'} positive />
+            <FinRow label="Project Cost" value={'' + proj.cost.toLocaleString() + ' Ħ'} />
+            <FinRow label="Gross Profit" value={'' + (proj.revenue - proj.cost).toLocaleString() + ' Ħ'} highlight positive={proj.revenue > proj.cost} />
             <FinRow label="Reputation Impact" value={'+' + proj.reputationImpact + ' rep'} positive />
             <div style={{ marginTop: 16, padding: '12px 0', borderTop: '1px solid var(--c-border)' }}>
               <div style={{ fontSize: 12, color: 'var(--c-text-muted)', marginBottom: 4 }}>Cost Breakdown</div>
@@ -171,18 +168,44 @@ export default function ProjectDetailScreen({
           <div className="card">
             <div className="game-section-title" style={{ marginBottom: 'var(--sp-4)' }}>At a Glance</div>
             <RequirementRow label="Min Reputation" met={meetsReputation} value={proj.minReputation + ' (you: ' + gs.reputation + ')'} />
-            <RequirementRow label="Cost vs Cash" met={!cantAfford} value={'$' + proj.cost.toLocaleString() + ' / $' + gs.cash.toLocaleString()} />
+            <RequirementRow label="Cost vs Cash" met={!cantAfford} value={'' + proj.cost.toLocaleString() + ' Ħ / Hanoon ' + gs.cash.toLocaleString()} />
             <RequirementRow label="Active project slots" met={!atCap} value={gs.activeProjects.length + '/' + MAX_ACTIVE_PROJECTS} />
             <p style={{ fontSize: 12, color: 'var(--c-text-muted)', marginTop: 12, lineHeight: 1.5 }}>
-              Required departments are not shown - read the brief and decide which teams to staff.
+              Required departments are not shown - read the brief and decide which departments to staff.
             </p>
           </div>
 
           {!confirmed && !isInActiveList && (
+            <div className="card" style={{ borderLeft: '4px solid var(--c-primary)' }}>
+              <div className="game-section-title" style={{ marginBottom: 'var(--sp-3)' }}>If you accept</div>
+              <FinRow label="Cash now" value={'' + gs.cash.toLocaleString() + ' Ħ'} />
+              <FinRow label="Upfront cost" value={'-' + proj.cost.toLocaleString() + ' Ħ'} />
+              <FinRow label="Cash after accepting" value={'' + (gs.cash - proj.cost).toLocaleString() + ' Ħ'} highlight positive={gs.cash - proj.cost >= 0} />
+              <FinRow label="Revenue on delivery" value={'+' + proj.revenue.toLocaleString() + ' Ħ'} positive />
+              <FinRow label="Reputation on delivery" value={'+' + proj.reputationImpact} positive />
+              <FinRow label="Pipeline slots" value={(gs.activeProjects.length + 1) + '/' + MAX_ACTIVE_PROJECTS} />
+              <p style={{ fontSize: 12, color: 'var(--c-text-muted)', marginTop: 10, lineHeight: 1.5 }}>
+                Cost is paid now; revenue and reputation arrive only when the project delivers - and only if your department meets its (hidden) requirements by the planned end.
+              </p>
+            </div>
+          )}
+
+          {!confirmed && !isInActiveList && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
-              <button className="btn btn--primary" style={{ width: '100%', justifyContent: 'center' }} onClick={handleAccept}>
+              <button
+                className="btn btn--primary"
+                style={{ width: '100%', justifyContent: 'center', ...((atCap || cantAfford) ? { opacity: 0.5, cursor: 'not-allowed' } : {}) }}
+                onClick={handleAccept}
+                disabled={atCap || cantAfford}
+              >
                 Accept Project
               </button>
+              {(atCap || cantAfford) && (
+                <div className="accept-blocker">
+                  {cantAfford && <div>Not enough cash - this brief needs {proj.cost.toLocaleString()} Ħ upfront and you have {gs.cash.toLocaleString()} Ħ.</div>}
+                  {atCap && <div>Pipeline full ({MAX_ACTIVE_PROJECTS}/{MAX_ACTIVE_PROJECTS}). Deliver a project before taking another.</div>}
+                </div>
+              )}
               <button className="btn btn--secondary" style={{ width: '100%', justifyContent: 'center' }} onClick={handleReject}>
                 Reject Project
               </button>

@@ -2,10 +2,10 @@
 export const objectives = {
   sectionLabel: 'HNI Way',
   winConditionLabel: 'Win condition',
-  winStatement: 'Finish Year 5 with the healthiest company score.',
+  winStatement: 'Finish Year 5 with a healthy, profitable company: strong cash, positive net profit, and reputation above 100.',
   bullets: [
-    'Cash and net profit matter',
-    'Reputation must stay above 100',
+    'Cash and net profit both matter',
+    'Build reputation past 100 to qualify for the leaderboard',
   ],
   stats: [
     { value: '20', label: 'Quarters', sub: 'Rounds' },
@@ -18,21 +18,20 @@ export const objectives = {
 export const startingSetup = {
   sectionLabel: 'HNI Way',
   statCards: [
-    { value: '100,000', label: 'Starting Cash', prefix: '$' },
-    { value: '2',       label: 'Mandatory Hires', sub: '1 L&D + 1 Sales' },
-    { value: '5,000',   label: 'Specialist Cost', prefix: '$' },
-    { value: '10,000',  label: 'Consultant Cost', prefix: '$' },
+    { value: '100,000 Hanoon', label: 'Starting Cash' },
+    { value: '2',       label: 'Starting Department', sub: '1 L&D + 1 Sales (pre-hired)' },
+    { value: '5,000 Hanoon', label: 'Specialist Cost' },
+    { value: '10,000 Hanoon', label: 'Consultant Cost' },
   ],
   panels: [
     {
-      title: 'Mandatory First Setup',
+      title: 'How Your Company Starts',
       icon: 'setup',
       bullets: [
-        'Every player starts with 100,000.',
-        'Before Quarter 1 begins, each player must hire: 1 L&D specialist and 1 Sales specialist.',
-        'Specialists cost 5,000 each.',
-        'Consultants cost 10,000 each.',
-        'Use this first setup to make the company operational before reading new sales requests.',
+        'Every player starts with 100,000 in cash.',
+        'Your company already has two specialists on staff: 1 Sales and 1 L&D.',
+        'Specialists cost 5,000 per quarter; consultants cost 10,000 per quarter.',
+        'Build out the departments each project actually needs as demand grows.',
       ],
     },
     {
@@ -41,7 +40,7 @@ export const startingSetup = {
       bullets: [
         '1 specialist can handle 2 projects at the same time.',
         '1 consultant can handle 4 projects at the same time.',
-        'Players should scale their team based on current demand, expected trend, and project load.',
+        'Players should scale their department based on current demand, expected trend, and project load.',
       ],
     },
     {

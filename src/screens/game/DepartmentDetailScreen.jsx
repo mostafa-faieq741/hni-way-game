@@ -4,7 +4,6 @@ import SmartPlayTip from '../../components/SmartPlayTip.jsx'
 import TutorialOverlay from '../../components/TutorialOverlay.jsx'
 import { DEPARTMENTS_DATA } from '../../data/departments.js'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
-import { getHrGate } from '../../components/HireModal.jsx'
 
 export default function DepartmentDetailScreen({ dept, gs, onHire, onFire, onTransfer, onGoBack, onShowToast }) {
   const [showTransfer, setShowTransfer] = useState(false)
@@ -17,7 +16,6 @@ export default function DepartmentDetailScreen({ dept, gs, onHire, onFire, onTra
   const consultants = staffing.consultants
   const totalStaff = specialists + consultants
   const otherDepts = DEPARTMENTS_DATA.filter((d) => d.id !== dept.id)
-  const { hasHr } = getHrGate(gs)
 
   const askConfirm = (cfg) => setConfirm(cfg)
   const runConfirm = () => {
@@ -27,14 +25,10 @@ export default function DepartmentDetailScreen({ dept, gs, onHire, onFire, onTra
   }
 
   const doHire = (type) => {
-    if (!hasHr && dept.id !== 'hr') {
-      onShowToast('You need to hire an HR first before hiring people for other departments.')
-      return
-    }
     const cost = type === 'specialist' ? GAME_CONFIG.specialistCostPerQuarter : GAME_CONFIG.consultantCostPerQuarter
     askConfirm({
       title: 'Confirm hire',
-      body: 'Are you sure you want to hire 1 ' + type + ' for ' + dept.name + '? This will add $' + cost.toLocaleString() + '/quarter in fixed expenses.',
+      body: 'Are you sure you want to hire 1 ' + type + ' for ' + dept.name + '? This will add ' + cost.toLocaleString() + ' Ħ/quarter in fixed expenses.',
       confirmLabel: 'Yes, hire',
       tone: 'primary',
       run: () => { onHire(dept.id, type); onShowToast((type === 'specialist' ? 'Specialist' : 'Consultant') + ' hired in ' + dept.name + '.') },
@@ -103,23 +97,12 @@ export default function DepartmentDetailScreen({ dept, gs, onHire, onFire, onTra
         </div>
       </div>
 
-      {!hasHr && dept.id !== 'hr' && (
-        <div style={{
-          background: 'var(--c-error-bg)', border: '1px solid #fca5a5',
-          color: 'var(--c-error)', padding: '10px 14px', borderRadius: 'var(--r-md)',
-          fontSize: 13, marginBottom: 'var(--sp-4)',
-        }}>
-          You need to hire an HR first before hiring people for other departments.
-          Go to the HR department to make the first HR hire.
-        </div>
-      )}
-
       <div className="dept-detail-grid">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-5)' }}>
           <div className="card">
             <div className="game-section-title" style={{ marginBottom: 'var(--sp-4)' }}>Department Profile</div>
             <InfoRow label="Activate When" value={dept.activateWhen} />
-            <InfoRow label="Team Needed" value={dept.teamNeeded} />
+            <InfoRow label="Department Needed" value={dept.teamNeeded} />
             <InfoRow label="Cost to Grow" value={dept.costToGrow} />
             <InfoRow label="What It Adds" value={dept.whatItAdds} />
             <InfoRow label="What It Needs" value={dept.whatItNeeds} />
@@ -139,19 +122,17 @@ export default function DepartmentDetailScreen({ dept, gs, onHire, onFire, onTra
             <StaffRow
               label="Specialists"
               count={specialists}
-              costLabel={'$' + GAME_CONFIG.specialistCostPerQuarter.toLocaleString() + '/qtr each'}
+              costLabel={'' + GAME_CONFIG.specialistCostPerQuarter.toLocaleString() + ' Ħ/qtr each'}
               onHire={() => doHire('specialist')}
               onFire={() => doFire('specialist')}
-              hireDisabled={!hasHr && dept.id !== 'hr'}
             />
             <div style={{ height: 1, background: 'var(--c-border)', margin: '12px 0' }} />
             <StaffRow
               label="Consultants"
               count={consultants}
-              costLabel={'$' + GAME_CONFIG.consultantCostPerQuarter.toLocaleString() + '/qtr each'}
+              costLabel={'' + GAME_CONFIG.consultantCostPerQuarter.toLocaleString() + ' Ħ/qtr each'}
               onHire={() => doHire('consultant')}
               onFire={() => doFire('consultant')}
-              hireDisabled={!hasHr && dept.id !== 'hr'}
             />
             <div style={{ marginTop: 16, padding: '10px 0', borderTop: '1px solid var(--c-border)', display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ fontSize: 13, color: 'var(--c-text-muted)' }}>Total staff</span>
@@ -160,7 +141,7 @@ export default function DepartmentDetailScreen({ dept, gs, onHire, onFire, onTra
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
               <span style={{ fontSize: 13, color: 'var(--c-text-muted)' }}>Quarterly cost</span>
               <span style={{ fontFamily: 'var(--f-heading)', fontWeight: 700, color: 'var(--c-primary)' }}>
-                ${(specialists * GAME_CONFIG.specialistCostPerQuarter + consultants * GAME_CONFIG.consultantCostPerQuarter).toLocaleString()}
+                {(specialists * GAME_CONFIG.specialistCostPerQuarter + consultants * GAME_CONFIG.consultantCostPerQuarter).toLocaleString()} Ħ
               </span>
             </div>
           </div>

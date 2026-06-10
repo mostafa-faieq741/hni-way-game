@@ -57,8 +57,8 @@ export default function LeaderboardModal({ open, onClose, currentPlayer }) {
                 </span>
               </span>
 
-              <span className="leaderboard-revenue">${row.revenue.toLocaleString()}</span>
-              <span className="leaderboard-netprofit">${row.netProfit.toLocaleString()}</span>
+              <span className="leaderboard-revenue">{row.revenue.toLocaleString()} Ħ</span>
+              <span className="leaderboard-netprofit">{row.netProfit.toLocaleString()} Ħ</span>
               <span className="leaderboard-reputation">{row.reputation}</span>
             </div>
           ))}

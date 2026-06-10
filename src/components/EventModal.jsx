@@ -11,7 +11,7 @@ function formatEffect(effect = {}) {
   if (effect.cash) {
     const sign = effect.cash > 0 ? '+' : '-'
     rows.push({
-      text: sign + '$' + Math.abs(effect.cash).toLocaleString() + ' cash',
+      text: sign + '' + Math.abs(effect.cash).toLocaleString() + ' Ħ cash',
       tone: effect.cash > 0 ? 'positive' : 'negative',
     })
   }
@@ -25,12 +25,19 @@ function formatEffect(effect = {}) {
   if (effect.fixedExpenses) {
     const sign = effect.fixedExpenses > 0 ? '+' : '-'
     rows.push({
-      text: sign + '$' + Math.abs(effect.fixedExpenses).toLocaleString() + ' fixed expenses/qtr',
+      text: sign + '' + Math.abs(effect.fixedExpenses).toLocaleString() + ' Ħ fixed expenses/qtr',
       tone: 'negative',
     })
   }
+  if (effect.staff && effect.staff.delta) {
+    const d = effect.staff.delta
+    rows.push({
+      text: (d > 0 ? '+' : '-') + Math.abs(d) + ' employee' + (Math.abs(d) > 1 ? 's' : ''),
+      tone: d > 0 ? 'positive' : 'negative',
+    })
+  }
   if (rows.length === 0) {
-    rows.push({ text: 'No financial impact', tone: 'neutral' })
+    rows.push({ text: 'No impact', tone: 'neutral' })
   }
   return rows
 }

@@ -1,34 +1,31 @@
 /**
  * Key Terms Data
  * Each term's `id` is the key — the correct match is when matches[term.id] === term.id
+ *
+ * Trimmed to the concepts the simulation actually uses, so the pre-game
+ * activity teaches what players will see in play rather than a long wall of
+ * vocabulary. The rest of the business glossary lives in the in-game Terms
+ * modal for just-in-time reference.
  */
 
 export const businessTerms = [
-  { id: 'revenue',      term: 'Revenue',           definition: 'Money earned after delivery.' },
-  { id: 'cogs',         term: 'COGS',               definition: 'Direct project delivery cost only.' },
-  { id: 'grossProfit',  term: 'Gross Profit',        definition: 'Revenue minus direct project cost.' },
-  { id: 'fixedCost',    term: 'Fixed Cost',          definition: 'Costs paid whether work happens or not.' },
-  { id: 'netProfit',    term: 'Net Profit',          definition: 'Gross profit after fixed cost and penalties.' },
-  { id: 'cashFlow',     term: 'Cash Flow',           definition: 'The movement of money in and out of the company.' },
-  { id: 'variableCost', term: 'Variable Cost',       definition: 'A cost that changes depending on the project size or delivery needs.' },
-  { id: 'rfpBrief',     term: 'RFP Brief',           definition: 'Client request written in plain language that the player must interpret.' },
-  { id: 'activeDept',   term: 'Active Department',   definition: 'Department with enough employees to respond to project needs.' },
-  { id: 'reputation',   term: 'Reputation',          definition: 'Trust score that affects growth, project access, and outcomes.' },
+  { id: 'revenue',     term: 'Revenue',     definition: 'Money earned when a project is delivered.' },
+  { id: 'grossProfit', term: 'Gross Profit', definition: 'Revenue minus the direct cost of delivering the project.' },
+  { id: 'netProfit',   term: 'Net Profit',  definition: 'Gross profit after fixed costs and any penalties.' },
+  { id: 'fixedCost',   term: 'Fixed Cost',  definition: 'Recurring cost you pay every quarter whether or not work happens.' },
+  { id: 'reputation',  term: 'Reputation',  definition: 'Trust score that unlocks bigger projects and qualifies you for the leaderboard.' },
+  { id: 'rfpBrief',    term: 'RFP Brief',   definition: 'A client request, in plain language, that you must read and interpret.' },
 ]
 
+// In this simulation, the recurring fixed cost is staff payroll. These items
+// frame that idea; "Salaries" is the one the game actually charges each quarter.
 export const fixedCostTerms = [
-  { id: 'salaries',        term: 'Salaries',          definition: 'Employees and consultants on payroll.' },
-  { id: 'officeRent',      term: 'Office Rent',        definition: 'Workspace and facilities cost.' },
-  { id: 'insurance',       term: 'Insurance',          definition: 'Staff, liability, and company coverage.' },
-  { id: 'taxes',           term: 'Taxes',              definition: 'Government fees and business tax obligations.' },
-  { id: 'itBills',         term: 'IT Bills',           definition: 'Software, systems, and platform subscriptions.' },
-  { id: 'internet',        term: 'Internet',           definition: 'Connectivity and office communication.' },
-  { id: 'utilities',       term: 'Utilities',          definition: 'Electricity, water, cooling, and services.' },
-  { id: 'licenses',        term: 'Licenses',           definition: 'Training tools, content, and software licenses.' },
-  { id: 'adminSupport',    term: 'Admin Support',      definition: 'Back-office, finance, and support cost.' },
-  { id: 'maintenance',     term: 'Maintenance',        definition: 'Equipment, devices, and office upkeep.' },
-  { id: 'vendorRetainers', term: 'Vendor Retainers',   definition: 'Ongoing contracted support or retainers.' },
-  { id: 'miscOverhead',    term: 'Misc. Overhead',     definition: 'Other recurring company running costs.' },
+  { id: 'salaries',     term: 'Salaries',      definition: 'Specialist and consultant pay — the fixed cost charged every quarter in this game.' },
+  { id: 'officeRent',   term: 'Office Rent',   definition: 'Workspace and facilities cost a real company pays regardless of workload.' },
+  { id: 'insurance',    term: 'Insurance',     definition: 'Staff, liability, and company coverage.' },
+  { id: 'licenses',     term: 'Licenses',      definition: 'Training tools, content, and software licenses.' },
+  { id: 'utilities',    term: 'Utilities',     definition: 'Electricity, water, cooling, and connectivity.' },
+  { id: 'adminSupport', term: 'Admin Support', definition: 'Back-office, finance, and support overhead.' },
 ]
 
 /** Utility: Fisher-Yates shuffle */

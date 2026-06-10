@@ -2,6 +2,8 @@ import React, { useState } from 'react'
 import HNILogo from './components/HNILogo.jsx'
 import Navigation from './components/Navigation.jsx'
 
+import SignInScreen        from './screens/SignInScreen.jsx'
+import AdminDashboard      from './screens/AdminDashboard.jsx'
 import StartScreen         from './screens/StartScreen.jsx'
 import ObjectivesScreen    from './screens/ObjectivesScreen.jsx'
 import KeyTermsScreen      from './screens/KeyTermsScreen.jsx'
@@ -25,6 +27,9 @@ const TOTAL_SCREENS = 7
 const SCREENS_WITHOUT_CHROME = new Set([0, 4, 5, 6])
 
 export default function App() {
+  // App-level role gate. 'signin' is the entry point.
+  const [mode, setMode] = useState('signin') // 'signin' | 'player' | 'admin'
+
   const [screenIndex, setScreenIndex] = useState(0)
   const [gameResult, setGameResult] = useState(null)
 
@@ -32,6 +37,34 @@ export default function App() {
   const goBack = () => setScreenIndex((i) => Math.max(i - 1, 1))
   const goTo = (index) => setScreenIndex(index)
 
+  // ── Sign in (entry) ──────────────────────────────────────────────
+  if (mode === 'signin') {
+    return (
+      <div className="app">
+        <SignInScreen
+          onSelectRole={(role) => {
+            if (role === 'admin') {
+              setMode('admin')
+            } else {
+              setScreenIndex(0)
+              setMode('player')
+            }
+          }}
+        />
+      </div>
+    )
+  }
+
+  // ── Admin (dashboard only) ───────────────────────────────────────
+  if (mode === 'admin') {
+    return (
+      <div className="app">
+        <AdminDashboard onSignOut={() => setMode('signin')} />
+      </div>
+    )
+  }
+
+  // ── Player (the original simulation flow) ────────────────────────
   const showHeader = !SCREENS_WITHOUT_CHROME.has(screenIndex)
   const showNav    = !SCREENS_WITHOUT_CHROME.has(screenIndex)
 

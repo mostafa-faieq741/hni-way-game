@@ -37,7 +37,7 @@ export default function VideoPlayer({ src = null, poster = null }) {
 
   return (
     <div className="video-wrap">
-      <div className="video-placeholder" role="img" aria-label="Video placeholder — MP4 file to be provided">
+      <div className="video-placeholder" role="img" aria-label="Welcome video — coming soon">
         {/* Animated play icon */}
         <div className="video-placeholder__play">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
@@ -47,7 +47,7 @@ export default function VideoPlayer({ src = null, poster = null }) {
 
         <div className="video-placeholder__text">
           <span>Welcome Video</span>
-          <small>Provide an MP4 file path via the <code>src</code> prop</small>
+          <small>Coming soon</small>
         </div>
 
         {/* HNI branding watermark */}

@@ -5,9 +5,9 @@
  * Used in dev/mock mode only (VITE_DEV_MOCK_SCORM=true).
  *
  * Pre-seeded game states (keyed by player_id):
- *   returning-001  Q3  – early game   ($85k cash, rep 20)
- *   returning-002  Q10 – mid game     ($120k cash, rep 65)
- *   returning-003  Q18 – late game    ($180k cash, rep 110, leaderboard qualified)
+ *   returning-001  Q3  – early game   (85 Ħk cash, rep 20)
+ *   returning-002  Q10 – mid game     (120 Ħk cash, rep 65)
+ *   returning-003  Q18 – late game    (180 Ħk cash, rep 110, leaderboard qualified)
  *
  * Players with no seeded state get a fresh game when startGame() is called.
  * ─────────────────────────────────────────────────────────────────────────────

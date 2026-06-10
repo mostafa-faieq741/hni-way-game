@@ -11,7 +11,7 @@ export const YEAR_FORECASTS = {
     icon:            'F',
     whyItMatters:    'Most clients are testing the market with low-stakes 1-star and 2-star briefs. Steady learning and customer service workshops dominate the pipeline.',
     staffingFocus:   'L&D, Sales, Resources',
-    expectedAdv:     'Predictable cash flow and reputation gains while you stabilise your team.',
+    expectedAdv:     'Predictable cash flow and reputation gains while you stabilise your department.',
     secondaryHint:   'Avoid over-hiring now - fixed expenses compound across all five years.',
   },
   2: {

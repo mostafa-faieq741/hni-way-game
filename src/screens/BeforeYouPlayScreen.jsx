@@ -1,6 +1,5 @@
 import React, { useState } from 'react'
 import { startingSetup, turnFlow } from '../data/gameData.js'
-import Button from '../components/Button.jsx'
 
 /* ── Panel Icons ── */
 function IconSetup() {
@@ -162,17 +161,6 @@ export default function BeforeYouPlayScreen({ onContinueToGame }) {
         </div>
       </section>
 
-      {/* ═══════════ CTA ═══════════ */}
-      <div className="byp-cta">
-        <Button
-          variant="primary"
-          size="lg"
-          onClick={onContinueToGame}
-          arrowRight
-        >
-          Continue to Game
-        </Button>
-      </div>
     </div>
   )
 }

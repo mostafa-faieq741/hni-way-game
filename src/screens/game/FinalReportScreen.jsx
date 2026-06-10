@@ -8,12 +8,19 @@ import { mergeDepartments } from '../../data/departments.js'
 import { GAME_CONFIG } from '../../data/gameConfig.js'
 import SmartPlayTip from '../../components/SmartPlayTip.jsx'
 
-export default function FinalReportScreen({ gs, onRestart }) {
+export default function FinalReportScreen({ gs, onRestart, lossReason = null }) {
   const departments = mergeDepartments(gs.departments)
   const activeDepts = departments.filter((d) => d.isActive)
   const totalEmployees = gs.departments.reduce((sum, d) => sum + d.specialists + d.consultants, 0)
 
   const qualified = gs.reputation > GAME_CONFIG.winReputationThreshold
+  const completed = gs.overallQuarter >= GAME_CONFIG.totalQuarters
+  const lost = !!lossReason
+  const lossMessage = lossReason === 'cash'
+    ? 'Bankruptcy — your cash fell below ' + (GAME_CONFIG.loseCashFloor).toLocaleString() + ' Hanoon. The company could no longer operate.'
+    : lossReason === 'reputation'
+      ? 'Reputation collapse — your reputation fell to ' + GAME_CONFIG.loseReputationFloor + '. Clients lost all confidence in the company.'
+      : ''
   const mostUsedDept = activeDepts.sort((a, b) => (b.totalStaff ?? 0) - (a.totalStaff ?? 0))[0]
 
   const bestYear = gs.yearSummaries?.length
@@ -33,15 +40,26 @@ export default function FinalReportScreen({ gs, onRestart }) {
       <div style={{ textAlign: 'center', marginBottom: 'var(--sp-8)' }}>
         <div style={{
           width: 80, height: 80, borderRadius: '50%', margin: '0 auto var(--sp-4)',
-          background: qualified ? 'var(--c-success)' : 'var(--c-primary)',
+          background: lost ? 'var(--c-error)' : qualified ? 'var(--c-success)' : 'var(--c-primary)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36,
         }}>
-          {qualified ? '🏆' : '📊'}
+          {lost ? '💀' : qualified ? '🏆' : '📊'}
         </div>
-        <div className="section-label">Game Complete — 20 Quarters</div>
+        <div className="section-label">{lost ? 'Game Over - Quarter ' + gs.overallQuarter + ' of ' + GAME_CONFIG.totalQuarters : completed ? 'Game Complete - 20 Quarters' : 'Session Ended - Quarter ' + gs.overallQuarter + ' of ' + GAME_CONFIG.totalQuarters}</div>
         <h1 style={{ fontFamily: 'var(--f-heading)', fontSize: 32, fontWeight: 800, color: 'var(--c-rich-black)', margin: '8px 0' }}>
-          Final Report
+          {lost ? 'Game Over' : 'Final Report'}
         </h1>
+
+        {lost && (
+          <div style={{
+            maxWidth: 520, margin: '8px auto 0', padding: '12px 18px',
+            background: 'var(--c-error-bg)', border: '2px solid var(--c-error)',
+            borderRadius: 'var(--r-lg)', color: 'var(--c-error)',
+            fontSize: 14, fontWeight: 600, lineHeight: 1.5,
+          }}>
+            {lossMessage}
+          </div>
+        )}
 
         {/* Leaderboard badge */}
         <div style={{ display: 'inline-block', marginTop: 12 }}>
@@ -67,12 +85,12 @@ export default function FinalReportScreen({ gs, onRestart }) {
 
       {/* Core KPIs */}
       <div className="summary-kpi-grid" style={{ marginBottom: 'var(--sp-6)' }}>
-        <KpiCard label="Total Revenue" value={`$${gs.totalRevenue.toLocaleString()}`} positive />
-        <KpiCard label="Total Expenses" value={`$${gs.totalCosts.toLocaleString()}`} />
-        <KpiCard label="Total Profit" value={`$${gs.netProfit.toLocaleString()}`} positive={gs.netProfit >= 0} negative={gs.netProfit < 0} />
+        <KpiCard label="Total Revenue" value={`${gs.totalRevenue.toLocaleString()} Ħ`} positive />
+        <KpiCard label="Total Expenses" value={`${gs.totalCosts.toLocaleString()} Ħ`} />
+        <KpiCard label="Total Profit" value={`${gs.netProfit.toLocaleString()} Ħ`} positive={gs.netProfit >= 0} negative={gs.netProfit < 0} />
         <KpiCard label="Final Reputation" value={gs.reputation} positive={qualified} />
         <KpiCard label="Employees" value={totalEmployees} />
-        <KpiCard label="Final Cash" value={`$${gs.cash.toLocaleString()}`} positive />
+        <KpiCard label="Final Cash" value={`${gs.cash.toLocaleString()} Ħ`} positive />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--sp-5)', marginBottom: 'var(--sp-6)' }}>
@@ -91,7 +109,7 @@ export default function FinalReportScreen({ gs, onRestart }) {
           <StatRow label="Active Departments" value={activeDepts.length} />
           <StatRow label="Total Departments Available" value={12} />
           <StatRow label="Most Used Department" value={mostUsedDept ? `${mostUsedDept.icon} ${mostUsedDept.name}` : '—'} />
-          {bestYear && <StatRow label="Best Year" value={`Year ${bestYear.year} ($${bestYear.netProfit.toLocaleString()})`} positive />}
+          {bestYear && <StatRow label="Best Year" value={`Year ${bestYear.year} (${bestYear.netProfit.toLocaleString()} Ħ)`} positive />}
         </div>
       </div>
 
@@ -123,12 +141,26 @@ export default function FinalReportScreen({ gs, onRestart }) {
           <p style={{ fontSize: 14, color: 'var(--c-text)', lineHeight: 1.7, marginTop: 6 }}>{overallInsight}</p>
         </div>
         <div className="card" style={{ borderLeft: '4px solid var(--c-gold)', background: 'var(--c-gold-lt)' }}>
-          <div style={{ fontFamily: 'var(--f-heading)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8a6900', marginBottom: 6 }}>
-            Performance Chart
+          <div style={{ fontFamily: 'var(--f-heading)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8a6900', marginBottom: 8 }}>
+            Year by Year
           </div>
-          <div style={{ fontSize: 13, color: 'var(--c-dark-grey)', fontStyle: 'italic' }}>
-            Year-by-year chart will be rendered here when the charting module is connected. Track your revenue and profit trends across all 5 years.
-          </div>
+          {gs.yearSummaries?.length ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {gs.yearSummaries.map((y) => (
+                <div key={y.year} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>
+                  <span style={{ fontFamily: 'var(--f-heading)', fontWeight: 700, color: 'var(--c-dark-grey)' }}>Year {y.year}</span>
+                  <span style={{ color: 'var(--c-dark-grey)' }}>
+                    Net <strong style={{ color: y.netProfit >= 0 ? 'var(--c-success)' : 'var(--c-error)' }}>{y.netProfit.toLocaleString()} Ħ</strong>
+                    <span style={{ color: '#8a6900' }}> · Rep {y.reputation}</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ fontSize: 13, color: 'var(--c-dark-grey)', fontStyle: 'italic' }}>
+              Finish at least one full year to see your year-by-year results here.
+            </div>
+          )}
         </div>
       </div>
 
@@ -142,7 +174,7 @@ export default function FinalReportScreen({ gs, onRestart }) {
             onClick={onRestart}
             style={{ minWidth: 240 }}
           >
-            ↺ Restart Prototype
+            ↺ Play Again
           </button>
           <p style={{ fontSize: 12, color: 'var(--c-text-muted)', marginTop: 8 }}>
             Resets all progress and starts a new game from Year 1, Quarter 1.
@@ -157,7 +189,7 @@ export default function FinalReportScreen({ gs, onRestart }) {
         </div>
         <p style={{ fontSize: 13, color: 'var(--c-text-muted)', maxWidth: 480, margin: '0 auto' }}>
           {qualified
-            ? `Your final net profit of $${gs.netProfit.toLocaleString()} will be ranked against other qualified players. Leaderboard rankings are determined by highest net profit among players with reputation above ${GAME_CONFIG.winReputationThreshold}.`
+            ? `Your final net profit of ${gs.netProfit.toLocaleString()} Ħ will be ranked against other qualified players. Leaderboard rankings are determined by highest net profit among players with reputation above ${GAME_CONFIG.winReputationThreshold}.`
             : `To qualify for the leaderboard, reputation must exceed ${GAME_CONFIG.winReputationThreshold}. Your final reputation was ${gs.reputation}. Try again — focus on on-time project delivery and protecting reputation.`}
         </p>
       </div>

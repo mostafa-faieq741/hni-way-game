@@ -35,8 +35,8 @@ export default function ReadyToStartScreen({ onFinish }) {
 
           {/* Description */}
           <p className="ready-screen__text">
-            You have completed the introduction.
-            The simulation screens will continue from here.
+            You have completed the introduction. Next, set up your player
+            profile, then start running your company.
           </p>
 
           {/* Summary badge */}
@@ -95,7 +95,7 @@ export default function ReadyToStartScreen({ onFinish }) {
             }}
           >
             {[
-              { label: 'Starting Cash', value: '$100,000' },
+              { label: 'Starting Cash', value: '100,000 Ħ' },
               { label: 'Starting Hires', value: '1 L&D + 1 Sales' },
               { label: 'Quarters', value: '20 total' },
               { label: 'Win Condition', value: 'Rep > 100' },
