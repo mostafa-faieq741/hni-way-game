@@ -12,6 +12,8 @@ import LeaderboardModal from '../../components/LeaderboardModal.jsx'
 import EventModal from '../../components/EventModal.jsx'
 import StatFloater from '../../components/StatFloater.jsx'
 import EndQuarterModal from '../../components/EndQuarterModal.jsx'
+import AnimatedNumber from '../../components/AnimatedNumber.jsx'
+import { play, isMuted, toggleMuted } from '../../services/sounds.js'
 
 import HomeScreen             from './HomeScreen.jsx'
 import ForecastScreen         from './ForecastScreen.jsx'
@@ -217,6 +219,28 @@ export default function GameContainer({ gameSetupResult }) {
   // One-time 'wrap up' warning shown when little session time remains.
   const [showTimeWarning, setShowTimeWarning] = useState(false)
 
+  const [muted, setMutedState] = useState(isMuted())
+  const [theme, setTheme] = useState(() => {
+    try { return document.documentElement.dataset.theme || 'dark' } catch { return 'dark' }
+  })
+  const [xpPulse, setXpPulse] = useState(false)
+
+  const handleToggleMute = useCallback(() => {
+    const m = toggleMuted()
+    setMutedState(m)
+    if (!m) play('click')
+  }, [])
+
+  const handleToggleTheme = useCallback(() => {
+    setTheme((t) => {
+      const next = t === 'dark' ? 'light' : 'dark'
+      document.documentElement.dataset.theme = next
+      try { localStorage.setItem('hni_theme', next) } catch {}
+      return next
+    })
+    play('click')
+  }, [])
+
   const [toast, setToast] = useState(null)
   const toastTimer = useRef(null)
   const [floats, setFloats] = useState([])
@@ -234,6 +258,23 @@ export default function GameContainer({ gameSetupResult }) {
   }, [])
 
   useEffect(() => () => clearTimeout(toastTimer.current), [])
+
+  // XP bar pulse + sound when reputation changes
+  const prevRep = useRef(gs.reputation)
+  useEffect(() => {
+    if (gs.reputation !== prevRep.current) {
+      if (gs.reputation > prevRep.current) play('badge')
+      prevRep.current = gs.reputation
+      setXpPulse(true)
+      const t = setTimeout(() => setXpPulse(false), 950)
+      return () => clearTimeout(t)
+    }
+  }, [gs.reputation])
+
+  // Incoming event chime
+  useEffect(() => {
+    if (eventQueue.length > 0) play('alert')
+  }, [eventQueue.length > 0 ? eventQueue[0] : null])
   useEffect(() => { saveToLocalStorage(gs) }, [gs])
 
   // Immediate-loss thresholds: bankruptcy or reputation collapse ends the game.
@@ -243,6 +284,7 @@ export default function GameContainer({ gameSetupResult }) {
     if (gs.cash < GAME_CONFIG.loseCashFloor) reason = 'cash'
     else if (gs.reputation <= GAME_CONFIG.loseReputationFloor) reason = 'reputation'
     if (reason) {
+      play('lose')
       setLossReason(reason)
       setEndPreviewOpen(false)
       setQuarterSummary(null)
@@ -338,8 +380,10 @@ export default function GameContainer({ gameSetupResult }) {
       setQuarterProgress({ forecast: false, accept: false, staff: false })
       let nextBag = prev.eventBag
       if (prev.overallQuarter >= GAME_CONFIG.totalQuarters && prev.lastResolution) {
+        play('fanfare')
         setGameScreen('final-report')
       } else if (prev.yearQuarter === 1 && prev.currentYear > 1) {
+        play('levelUp')
         setCompletedYear(prev.currentYear - 1)
         setGameScreen('year-summary')
         const drawn = drawEvents(prev.eventBag, 2)
@@ -348,6 +392,7 @@ export default function GameContainer({ gameSetupResult }) {
       } else {
         setGameScreen('home')
         // Replace the old fading toast with an explicit "what changed" summary moment.
+        play((prev.lastResolution?.revenueGained || 0) > 0 ? 'coin' : 'click')
         setQuarterSummary(prev.lastResolution)
         const drawn = drawEvents(prev.eventBag, 2)
         nextBag = drawn.nextBag
@@ -358,8 +403,9 @@ export default function GameContainer({ gameSetupResult }) {
   }, [showToast, pushFloat])
 
   // Open the end-of-quarter preview (the explicit, deliberate commit point).
-  const requestEndQuarter = useCallback(() => setEndPreviewOpen(true), [])
+  const requestEndQuarter = useCallback(() => { play('click'); setEndPreviewOpen(true) }, [])
   const confirmEndQuarter = useCallback(() => {
+    play('commit')
     setEndPreviewOpen(false)
     handleSubmitQuarter()
   }, [handleSubmitQuarter])
@@ -389,9 +435,11 @@ export default function GameContainer({ gameSetupResult }) {
         return prev
       }
       if (prev.cash < template.cost) {
+        play('error')
         showToast('Need ' + template.cost.toLocaleString() + ' Ħ cash to accept this project.')
         return prev
       }
+      play('spend')
       const active = makeActiveProject(template, prev.overallQuarter)
       pushFloat('-' + template.cost.toLocaleString() + ' Ħ cash', 'negative')
       pushFloat('+1 active project', 'neutral')
@@ -421,6 +469,7 @@ export default function GameContainer({ gameSetupResult }) {
   const handleHire = useCallback((deptId, type) => {
     const key = type === 'specialist' ? 'specialists' : 'consultants'
     const cost = type === 'specialist' ? GAME_CONFIG.specialistCostPerQuarter : GAME_CONFIG.consultantCostPerQuarter
+    play('hire')
     pushFloat('+1 employee', 'positive')
     pushFloat('+' + cost.toLocaleString() + ' Ħ fixed/qtr', 'negative')
     setGs((prev) => {
@@ -439,6 +488,7 @@ export default function GameContainer({ gameSetupResult }) {
         showToast('No ' + type + 's to fire in this department.')
         return prev
       }
+      play('error')
       pushFloat('-1 employee', 'negative')
       pushFloat('-1 reputation', 'negative')
       const next = patchDeptStaffing(prev, deptId, key, -1)
@@ -507,6 +557,7 @@ export default function GameContainer({ gameSetupResult }) {
       }
       return next
     })
+    play('click')
     showToast(option.toast || 'Event resolved.')
     setEventQueue((q) => q.slice(1))
   }, [pushFloat, showToast])
@@ -520,10 +571,14 @@ export default function GameContainer({ gameSetupResult }) {
     <div className="game-shell">
       <div className="game-topbar">
         <div className="game-topbar__logo">
-          <HNILogo height={28} />
+          <HNILogo height={24} />
+        </div>
+        <div className="hud-brand">HNI Way</div>
+        <div className="hud-level" title={'Round ' + gs.overallQuarter + ' of ' + GAME_CONFIG.totalQuarters}>
+          LVL {gs.overallQuarter}
         </div>
         <div className="game-topbar__badge">
-          Q{gs.yearQuarter} - Year {gs.currentYear}
+          Q{gs.yearQuarter} · Y{gs.currentYear}
         </div>
         <SessionTimer
           startedAt={gs.sessionStartedAt}
@@ -533,15 +588,54 @@ export default function GameContainer({ gameSetupResult }) {
           warnAtSeconds={120}
           stopped={gameScreen === 'final-report'}
         />
-        <div className="game-topbar__player">
-          {gs.playerName} - {gs.cash.toLocaleString()} Ħ - Rep {gs.reputation}
+        <div className="hud-stats">
+          <div className="hud-stat">
+            <span className="hud-stat__label">Cash</span>
+            <span className="hud-stat__value hud-stat__value--cash">
+              <AnimatedNumber value={gs.cash} /> Ħ
+            </span>
+          </div>
+          <div className="hud-stat">
+            <span className="hud-stat__label">Rep</span>
+            <span className="hud-stat__value hud-stat__value--rep">
+              <AnimatedNumber value={gs.reputation} />
+            </span>
+          </div>
+          <div className="hud-avatar" title={gs.playerName}>
+            {(gs.playerName || 'P').split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()}
+          </div>
+          <button className="hud-iconbtn" onClick={() => { play('nav'); setShowLeaderboard(true) }} title="Leaderboard" aria-label="Leaderboard">
+            <span aria-hidden="true">🏆</span>
+          </button>
+          <button className="hud-iconbtn" onClick={() => { play('nav'); setShowGlossary(true) }} title="Terms / Glossary" aria-label="Terms and glossary">
+            <span aria-hidden="true">?</span>
+          </button>
+          <button className={'hud-iconbtn' + (muted ? '' : ' hud-iconbtn--active')} onClick={handleToggleMute} title={muted ? 'Unmute sounds' : 'Mute sounds'} aria-label="Toggle sound">
+            <span aria-hidden="true">{muted ? '🔇' : '🔊'}</span>
+          </button>
+          <button className="hud-iconbtn" onClick={handleToggleTheme} title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} aria-label="Toggle light/dark mode">
+            <span aria-hidden="true">{theme === 'dark' ? '☀️' : '🌙'}</span>
+          </button>
         </div>
-        <button className="game-topbar__glossary" onClick={() => setShowLeaderboard(true)} title="Open Leaderboard">
-          Leaderboard
-        </button>
-        <button className="game-topbar__glossary" onClick={() => setShowGlossary(true)} title="Open Terms / Glossary">
-          Terms
-        </button>
+      </div>
+
+      <div className="hud-xp">
+        <span className="hud-xp__label">XP · Reputation</span>
+        <div className="hud-xp__track">
+          <div
+            className={
+              'hud-xp__fill' +
+              (gs.reputation >= GAME_CONFIG.winReputationThreshold ? ' hud-xp__fill--max' : '') +
+              (xpPulse ? ' hud-xp__fill--pulse' : '')
+            }
+            style={{ width: Math.max(2, Math.min(100, (gs.reputation / GAME_CONFIG.winReputationThreshold) * 100)) + '%' }}
+          />
+        </div>
+        <span className="hud-xp__value">
+          {gs.reputation >= GAME_CONFIG.winReputationThreshold
+            ? 'Leaderboard qualified ★'
+            : gs.reputation + ' / ' + GAME_CONFIG.winReputationThreshold}
+        </span>
       </div>
 
       {showTimeWarning && gameScreen !== 'final-report' && (
@@ -638,7 +732,7 @@ export default function GameContainer({ gameSetupResult }) {
       {showNav && (
         <GameNav
           activeScreen={activeTab}
-          onNavigate={(tab) => setGameScreen(TAB_TO_SCREEN[tab] || tab)}
+          onNavigate={(tab) => { play('nav'); setGameScreen(TAB_TO_SCREEN[tab] || tab) }}
         />
       )}
 

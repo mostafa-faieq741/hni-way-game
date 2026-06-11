@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import HNILogo from './components/HNILogo.jsx'
 import Navigation from './components/Navigation.jsx'
+import ThemeToggle from './components/ThemeToggle.jsx'
 
 import SignInScreen        from './screens/SignInScreen.jsx'
 import AdminDashboard      from './screens/AdminDashboard.jsx'
@@ -130,6 +131,7 @@ export default function App() {
           <span className="app-header__title">
             {SCREEN_TITLES[screenIndex]}
           </span>
+          <ThemeToggle style={{ marginLeft: 'auto' }} />
         </header>
       )}
 

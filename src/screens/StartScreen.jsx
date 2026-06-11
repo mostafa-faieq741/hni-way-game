@@ -1,6 +1,7 @@
 import React from 'react'
 import VideoPlayer from '../components/VideoPlayer.jsx'
-import Button from '../components/Button.jsx'
+import ThemeToggle from '../components/ThemeToggle.jsx'
+import { play } from '../services/sounds.js'
 
 /**
  * StartScreen
@@ -16,6 +17,8 @@ export default function StartScreen({ onStart, videoSrc = null, videoPoster = nu
   return (
     <main className="app-main">
       <div className="start-screen screen">
+        <ThemeToggle style={{ position: 'absolute', top: 16, right: 16, zIndex: 2 }} />
+
         {/* Decorative brand circles */}
         <div className="start-screen__deco" aria-hidden="true" />
         <div className="start-screen__deco2" aria-hidden="true" />
@@ -50,14 +53,12 @@ export default function StartScreen({ onStart, videoSrc = null, videoPoster = nu
 
           {/* CTA */}
           <div className="start-screen__cta">
-            <Button
-              variant="primary"
-              size="lg"
-              onClick={onStart}
-              arrowRight
+            <button
+              className="press-start"
+              onClick={() => { play('levelUp'); onStart() }}
             >
-              Start
-            </Button>
+              ▶ Press Start
+            </button>
             <p className="start-screen__hint">
               The video does not need to finish before continuing.
             </p>
