@@ -116,6 +116,7 @@ function buildSnapshot(state) {
     playerId: state.playerId,
     playerName: state.playerName,
     sessionStartedAt: state.sessionStartedAt,
+    playedSeconds: (state.playedSeconds || 0) + Math.max(0, Math.floor((Date.now() - (state.sessionStartedAt || Date.now())) / 1000)),
     practiceMode: state.practiceMode,
   }
 }
@@ -165,6 +166,7 @@ function buildInitialGs(setupResult) {
     yearSummaries:          [],
     lastResolution:         null,
     sessionStartedAt:       Date.now(),
+    playedSeconds:          0,
     practiceMode:           true,
   }
   base.quarterBriefs = buildQuarterBriefs(base, [])
@@ -172,6 +174,9 @@ function buildInitialGs(setupResult) {
     const saved = setupResult?.serverState || loadFromLocalStorage(base.playerId)
     if (saved) {
       const merged = { ...base, ...saved }
+      // Resume the play-time cap from where it was; start a fresh session clock.
+      merged.playedSeconds = saved.playedSeconds || 0
+      merged.sessionStartedAt = Date.now()
       // Migrate older saves (which stored brief IDs, not objects) and rebuild
       // the brief set against the SAVED departments/quarter so sales capacity
       // is reflected correctly.
@@ -337,6 +342,21 @@ export default function GameContainer({ gameSetupResult }) {
     if (eventQueue.length > 0) play('alert')
   }, [eventQueue.length > 0 ? eventQueue[0] : null])
   useEffect(() => { saveToLocalStorage(gs) }, [gs])
+
+  // Capture the latest play time when the player hides or closes the tab, so
+  // the session clock resumes accurately (no time burned while away).
+  useEffect(() => {
+    const persist = () => {
+      try { saveToLocalStorage(gs) } catch {}
+      if (!gameSetupResult?.demoMode && gs.playerId && gs.playerId !== 'demo-001' && !gs.practiceMode) {
+        serverSave(gs.playerId, { ...buildSnapshot(gs), gameStatus: gameScreen === 'final-report' ? 'finished' : 'in_progress' })
+      }
+    }
+    const onVis = () => { if (document.hidden) persist() }
+    document.addEventListener('visibilitychange', onVis)
+    window.addEventListener('pagehide', persist)
+    return () => { document.removeEventListener('visibilitychange', onVis); window.removeEventListener('pagehide', persist) }
+  }, [gs, gameScreen, gameSetupResult])
 
   // Persist to the server (cross-device resume + leaderboard) for signed-in,
   // non-practice players. Debounced so we don't spam the API on every change.
@@ -728,6 +748,7 @@ export default function GameContainer({ gameSetupResult }) {
         <span data-tour="timer" style={{ display: "inline-flex" }}>
         <SessionTimer
           startedAt={gs.sessionStartedAt}
+          playedSeconds={gs.playedSeconds || 0}
           totalSeconds={GAME_CONFIG.sessionMinutes * 60}
           onExpire={handleTimeUp}
           onWarn={handleTimeWarn}

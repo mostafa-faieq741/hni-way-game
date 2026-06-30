@@ -13,11 +13,14 @@
 
 import React, { useEffect, useRef, useState } from 'react'
 
-export default function SessionTimer({ startedAt, totalSeconds, onExpire, onWarn, warnAtSeconds = 120, stopped = false }) {
+export default function SessionTimer({ startedAt, totalSeconds, playedSeconds = 0, onExpire, onWarn, warnAtSeconds = 120, stopped = false }) {
+  // Remaining = total cap minus (time already played in prior sessions +
+  // time played since this session opened). Closing the tab stops the count;
+  // it resumes from the saved `playedSeconds` next time.
   const compute = () => {
-    const base = startedAt || Date.now()
-    const elapsed = Math.floor((Date.now() - base) / 1000)
-    return Math.max(0, totalSeconds - elapsed)
+    const started = startedAt || Date.now()
+    const sinceStart = Math.max(0, Math.floor((Date.now() - started) / 1000))
+    return Math.max(0, totalSeconds - ((playedSeconds || 0) + sinceStart))
   }
 
   const [remaining, setRemaining] = useState(compute)
@@ -42,7 +45,7 @@ export default function SessionTimer({ startedAt, totalSeconds, onExpire, onWarn
     const id = setInterval(tick, 1000)
     return () => clearInterval(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startedAt, totalSeconds, stopped])
+  }, [startedAt, totalSeconds, playedSeconds, stopped])
 
   const mm = String(Math.floor(remaining / 60)).padStart(2, '0')
   const ss = String(remaining % 60).padStart(2, '0')
