@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HNI Way – Game Look Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@400;600;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#140a18; --surface:#221327; --surface2:#1a0d1f; --border:#3a2237; --border2:#533050;
+  --text:#f4e9f1; --muted:#b393ac; --pink:#e0598a; --magenta:#91195a; --gold:#f1bd19;
+  --green:#5dcaa5; --red:#f08c8c; --mono:'JetBrains Mono',monospace; --disp:'Chakra Petch',sans-serif;
+  --body:'Source Sans 3',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:var(--body);min-height:100vh}
+button{font-family:inherit;cursor:pointer}
+
+/* proto nav */
+.proto-nav{display:flex;gap:8px;padding:14px 20px;background:var(--surface2);border-bottom:1px solid var(--border2);flex-wrap:wrap;position:sticky;top:0;z-index:50}
+.proto-nav button{font-family:var(--disp);font-size:12px;letter-spacing:.1em;text-transform:uppercase;background:transparent;color:var(--muted);border:1px solid var(--border2);border-radius:6px;padding:8px 14px;transition:all .15s}
+.proto-nav button:hover{color:var(--gold);border-color:var(--gold)}
+.proto-nav button.on{background:var(--magenta);color:#fff;border-color:var(--magenta);box-shadow:0 0 12px rgba(145,25,90,.6)}
+.section{display:none;padding:0}
+.section.on{display:block}
+
+/* HUD */
+.hud{display:flex;align-items:center;gap:14px;padding:0 22px;height:60px;background:var(--surface2);border-bottom:1px solid #4f2c49;box-shadow:0 1px 0 var(--magenta),0 2px 18px rgba(145,25,90,.35)}
+.hud-brand{font-family:var(--disp);font-weight:700;font-size:14px;letter-spacing:.22em;color:var(--gold);text-transform:uppercase}
+.lvl{font-family:var(--mono);font-size:12px;font-weight:700;background:var(--magenta);color:#fff;border-radius:6px;padding:4px 10px;letter-spacing:.1em;box-shadow:0 0 10px rgba(145,25,90,.6)}
+.chip{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.12em;color:var(--pink);background:#36132a;border:1px solid var(--border2);border-radius:999px;padding:4px 12px;text-transform:uppercase}
+.hud-right{margin-left:auto;display:flex;gap:18px;align-items:center}
+.hstat{display:flex;flex-direction:column;align-items:flex-end;line-height:1.25}
+.hstat b{font-family:var(--mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);font-weight:400}
+.hstat span{font-family:var(--mono);font-size:15px;font-weight:700}
+.cash{color:var(--green)} .rep{color:var(--gold)}
+.avatar{width:32px;height:32px;border-radius:50%;background:var(--gold);color:#412402;display:flex;align-items:center;justify-content:center;font-family:var(--disp);font-weight:700;font-size:12px}
+
+/* dual bars: XP + HP */
+.bars{display:flex;flex-direction:column;gap:5px;padding:8px 22px;background:#170b1c;border-bottom:1px solid var(--border)}
+.bar-row{display:flex;align-items:center;gap:10px}
+.bar-row b{font-family:var(--mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);font-weight:400;width:110px;text-align:right}
+.track{flex:1;height:10px;background:#36132a;border:1px solid var(--border);border-radius:999px;overflow:hidden}
+.fill{height:100%;border-radius:999px;transition:width .7s cubic-bezier(.22,1,.36,1)}
+.fill.xp{width:62%;background:linear-gradient(90deg,var(--magenta),var(--pink));box-shadow:0 0 8px rgba(224,89,138,.7)}
+.fill.hp{width:48%;background:linear-gradient(90deg,#0c6e3a,var(--green));box-shadow:0 0 8px rgba(93,202,165,.5)}
+.fill.hp.low{background:linear-gradient(90deg,#7a1d1d,var(--red));animation:hpBlink 1s infinite}
+@keyframes hpBlink{50%{filter:brightness(1.7)}}
+.bar-row em{font-family:var(--mono);font-size:10px;font-weight:700;font-style:normal;color:var(--muted);width:150px}
+
+/* ===== 1. COMMAND CENTER ===== */
+.board{display:grid;grid-template-columns:1fr 260px;gap:16px;padding:18px 22px 90px}
+.panel{background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:16px}
+.panel h3{font-family:var(--disp);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+.mission{display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;background:var(--surface2)}
+.mission .tick{width:18px;height:18px;border-radius:50%;border:2px solid var(--border2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px}
+.mission.done .tick{background:var(--green);border-color:var(--green);color:#06281c}
+.mission.done .mt{text-decoration:line-through;color:var(--muted)}
+.mission .mt{font-size:13px;font-weight:600}
+.mission .mr{font-family:var(--mono);font-size:10px;color:var(--gold)}
+.units{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}
+.unit{position:relative;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:12px 10px;text-align:center;transition:all .15s;border-bottom:3px solid var(--border2)}
+.unit:hover{transform:translateY(-3px);border-color:var(--pink);box-shadow:0 6px 18px rgba(224,89,138,.25)}
+.unit .ico{font-size:24px}
+.unit .nm{font-family:var(--disp);font-size:11px;font-weight:600;letter-spacing:.04em;margin-top:6px}
+.unit .ulvl{font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:3px}
+.unit .pips{display:flex;gap:3px;justify-content:center;margin-top:6px}
+.unit .pip{width:7px;height:7px;border-radius:2px;background:#36132a;border:1px solid var(--border)}
+.unit .pip.f{background:var(--pink);border-color:var(--pink);box-shadow:0 0 5px rgba(224,89,138,.6)}
+.unit.elite{border-color:var(--gold);border-bottom-color:var(--gold)}
+.unit.elite .ulvl{color:var(--gold)}
+.unit.locked{opacity:.45;border-style:dashed}
+.unit.locked:hover{transform:none;box-shadow:none;border-color:var(--border2)}
+.unit .lock{position:absolute;top:6px;right:8px;font-size:11px}
+.proj{padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;background:var(--surface2)}
+.proj b{font-family:var(--mono);font-size:12px;color:var(--pink)}
+.proj .pbar{height:6px;background:#36132a;border-radius:999px;margin-top:7px;overflow:hidden}
+.proj .pbar i{display:block;height:100%;background:var(--green);border-radius:999px}
+.proj small{font-family:var(--mono);font-size:9px;color:var(--muted)}
+.proj.late b{color:var(--red)} .proj.late .pbar i{background:var(--red)}
+.end-turn{position:fixed;right:26px;bottom:24px;z-index:60;font-family:var(--disp);font-size:15px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;background:var(--gold);color:#412402;border:none;border-radius:10px;padding:16px 30px;box-shadow:0 0 16px rgba(241,189,25,.4);transition:all .2s;animation:etPulse 2s infinite}
+.end-turn:hover{transform:scale(1.05);box-shadow:0 0 30px rgba(241,189,25,.7)}
+@keyframes etPulse{0%,100%{box-shadow:0 0 14px rgba(241,189,25,.45)}50%{box-shadow:0 0 30px rgba(241,189,25,.8)}}
+.coin{position:fixed;z-index:200;font-family:var(--mono);font-weight:700;color:var(--gold);pointer-events:none;animation:coinFly 1s ease-in forwards}
+@keyframes coinFly{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-130px) scale(.6)}}
+
+/* ===== 3. RESULTS ===== */
+.results{max-width:520px;margin:30px auto;background:var(--surface);border:1px solid var(--border2);border-radius:16px;padding:34px;text-align:center;box-shadow:0 0 0 1px #4f2c49,0 12px 48px rgba(0,0,0,.7),0 0 32px rgba(145,25,90,.25)}
+.results h2{font-family:var(--disp);font-size:24px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
+.results .rsub{font-family:var(--mono);font-size:11px;color:var(--muted);margin:4px 0 20px}
+.stars3{font-size:46px;letter-spacing:8px;height:60px}
+.stars3 span{display:inline-block;opacity:0;transform:scale(2.4);filter:grayscale(1) opacity(.3)}
+.stars3 span.lit{animation:starIn .45s cubic-bezier(.34,1.56,.64,1) forwards;filter:none}
+.stars3 span.dim{animation:starIn .45s forwards;filter:grayscale(1) opacity(.25)}
+@keyframes starIn{to{opacity:1;transform:scale(1)}}
+.rrows{margin:18px 0;text-align:left}
+.rrow{display:flex;justify-content:space-between;padding:9px 4px;border-bottom:1px solid var(--border);font-size:14px}
+.rrow b{font-family:var(--mono);font-weight:700}
+.pos{color:var(--green)} .neg{color:var(--red)}
+.next-btn{font-family:var(--disp);font-size:14px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;background:var(--gold);color:#412402;border:none;border-radius:10px;padding:14px 34px;margin-top:10px;box-shadow:0 0 16px rgba(241,189,25,.4)}
+.next-btn:hover{transform:scale(1.04)}
+
+/* ===== 4. FATE CARD ===== */
+.fate-wrap{display:flex;flex-direction:column;align-items:center;gap:18px;padding:40px}
+.fate-hint{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.fate{width:280px;height:380px;perspective:1100px;cursor:pointer}
+.fate-inner{width:100%;height:100%;position:relative;transform-style:preserve-3d;transition:transform .7s cubic-bezier(.4,.1,.2,1)}
+.fate.flipped .fate-inner{transform:rotateY(180deg)}
+.fface{position:absolute;inset:0;backface-visibility:hidden;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center}
+.fback{background:repeating-linear-gradient(45deg,#36132a 0 14px,#2b0f22 14px 28px);border:2px solid var(--magenta);box-shadow:0 0 24px rgba(145,25,90,.5)}
+.fback .q{font-family:var(--disp);font-size:64px;color:var(--pink);text-shadow:0 0 18px rgba(224,89,138,.8)}
+.fback .t{font-family:var(--disp);font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold)}
+.ffront{background:var(--surface);border:2px solid var(--gold);transform:rotateY(180deg);box-shadow:0 0 24px rgba(241,189,25,.4)}
+.ffront .ico{font-size:44px}
+.ffront h4{font-family:var(--disp);font-size:16px;letter-spacing:.08em;text-transform:uppercase}
+.ffront p{font-size:13px;color:var(--muted);line-height:1.5}
+.fbtns{display:flex;flex-direction:column;gap:8px;width:100%}
+.fbtns button{font-family:var(--disp);font-size:12px;letter-spacing:.06em;border-radius:8px;padding:10px;border:1px solid var(--border2);background:var(--surface2);color:var(--text)}
+.fbtns button:hover{border-color:var(--gold);color:var(--gold)}
+
+/* ===== 5. ACHIEVEMENTS ===== */
+.ach-wrap{max-width:860px;margin:0 auto;padding:28px 22px}
+.ach-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}
+.ach{background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:18px 14px;text-align:center;position:relative}
+.ach .medal{font-size:34px}
+.ach h5{font-family:var(--disp);font-size:12px;letter-spacing:.08em;text-transform:uppercase;margin-top:8px}
+.ach p{font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:5px;letter-spacing:.04em}
+.ach.unlocked{border-color:var(--gold);box-shadow:0 0 14px rgba(241,189,25,.18)}
+.ach.unlocked h5{color:var(--gold)}
+.ach.locked{opacity:.45}
+.ach.locked .medal{filter:grayscale(1)}
+.ach .achbar{height:5px;background:#36132a;border-radius:999px;margin-top:10px;overflow:hidden}
+.ach .achbar i{display:block;height:100%;background:var(--pink);border-radius:999px}
+.sec-head{font-family:var(--disp);font-size:16px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);text-align:center;padding:26px 0 4px}
+.sec-sub{font-family:var(--mono);font-size:11px;color:var(--muted);text-align:center;margin-bottom:8px}
+@media(max-width:900px){.board{grid-template-columns:1fr}.hud .chip{display:none}}
+</style>
+</head>
+<body>
+
+<nav class="proto-nav">
+  <button class="on" data-s="s1">1 · Command Center</button>
+  <button data-s="s3">2 · Quarter Results</button>
+  <button data-s="s4">3 · Fate Card</button>
+  <button data-s="s5">4 · Achievements</button>
+</nav>
+
+<!-- ===== 1. COMMAND CENTER (proposed new Home layout) ===== -->
+<section class="section on" id="s1">
+  <div class="hud">
+    <span class="hud-brand">HNI Way</span>
+    <span class="lvl">LVL 3</span>
+    <span class="chip">Q3 · Y1</span>
+    <div class="hud-right">
+      <div class="hstat"><b>Cash</b><span class="cash" id="cashVal">$48,200</span></div>
+      <div class="hstat"><b>Rep</b><span class="rep">62</span></div>
+      <div class="avatar">MF</div>
+    </div>
+  </div>
+  <div class="bars">
+    <div class="bar-row"><b>XP · Reputation</b><div class="track"><div class="fill xp"></div></div><em>62 / 100</em></div>
+    <div class="bar-row"><b>HP · Cash</b><div class="track"><div class="fill hp" id="hpFill"></div></div><em id="hpTxt">$48,200 / $100,000</em></div>
+  </div>
+
+  <div class="board">
+    <div class="panel">
+      <h3>Departments <span style="font-family:var(--mono);font-size:9px;color:var(--muted)">4 ACTIVE · 8 LOCKED</span></h3>
+      <div class="units">
+        <div class="unit elite"><div class="ico">👥</div><div class="nm">HR</div><div class="ulvl">LVL 3 · ELITE</div><div class="pips"><span class="pip f"></span><span class="pip f"></span><span class="pip f"></span><span class="pip"></span></div></div>
+        <div class="unit"><div class="ico">📈</div><div class="nm">Sales</div><div class="ulvl">LVL 2</div><div class="pips"><span class="pip f"></span><span class="pip f"></span><span class="pip"></span><span class="pip"></span></div></div>
+        <div class="unit"><div class="ico">🎓</div><div class="nm">L&amp;D</div><div class="ulvl">LVL 1</div><div class="pips"><span class="pip f"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span></div></div>
+        <div class="unit"><div class="ico">💰</div><div class="nm">Finance</div><div class="ulvl">LVL 1</div><div class="pips"><span class="pip f"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span></div></div>
+        <div class="unit locked"><span class="lock">🔒</span><div class="ico">📣</div><div class="nm">Marketing</div><div class="ulvl">HIRE TO UNLOCK</div></div>
+        <div class="unit locked"><span class="lock">🔒</span><div class="ico">⚙️</div><div class="nm">Operations</div><div class="ulvl">HIRE TO UNLOCK</div></div>
+        <div class="unit locked"><span class="lock">🔒</span><div class="ico">💻</div><div class="nm">IT</div><div class="ulvl">HIRE TO UNLOCK</div></div>
+        <div class="unit locked"><span class="lock">🔒</span><div class="ico">⚖️</div><div class="nm">Legal</div><div class="ulvl">HIRE TO UNLOCK</div></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Active quests</h3>
+      <div class="proj"><b>PRJ-104</b><div class="pbar"><i style="width:75%"></i></div><small>1 QTR LEFT · $12,000</small></div>
+      <div class="proj"><b>PRJ-097</b><div class="pbar"><i style="width:40%"></i></div><small>2 QTR LEFT · $18,000</small></div>
+      <div class="proj late"><b>PRJ-088</b><div class="pbar"><i style="width:100%"></i></div><small>OVERDUE · -2 REP / QTR</small></div>
+      <h3 style="margin-top:18px">Briefs waiting <span style="color:var(--pink)">2</span></h3>
+      <div class="proj"><b>BRF-201</b><small style="display:block;margin-top:4px">REWARD $22,000 · +6 REP</small></div>
+    </div>
+  </div>
+  <button class="end-turn" id="endTurn">▶ End Quarter</button>
+</section>
+
+<!-- ===== 3. RESULTS ===== -->
+<section class="section" id="s3">
+  <div class="results">
+    <h2 id="rTitle">Quarter complete!</h2>
+    <div class="rsub">Q3 · YEAR 1 — LEVEL 3 CLEARED</div>
+    <div class="stars3" id="stars"><span>★</span><span>★</span><span>★</span></div>
+    <div class="rrows">
+      <div class="rrow"><span>Revenue delivered</span><b class="pos" id="rv">+$0</b></div>
+      <div class="rrow"><span>Payroll &amp; expenses</span><b class="neg" id="ex">-$0</b></div>
+      <div class="rrow"><span>Reputation</span><b class="pos" id="rp">+0</b></div>
+      <div class="rrow"><span>Projects delivered</span><b id="pd">0 / 0</b></div>
+    </div>
+    <button class="next-btn" id="replay">▶ Next level</button>
+  </div>
+</section>
+
+<!-- ===== 4. FATE CARD ===== -->
+<section class="section" id="s4">
+  <div class="fate-wrap">
+    <div class="sec-head" style="padding-top:10px">A twist of fate</div>
+    <div class="fate-hint">CLICK THE CARD TO REVEAL THIS QUARTER'S EVENT</div>
+    <div class="fate" id="fate">
+      <div class="fate-inner">
+        <div class="fface fback"><div class="q">?</div><div class="t">Fate card</div></div>
+        <div class="fface ffront">
+          <div class="ico">📉</div>
+          <h4>Market downturn</h4>
+          <p>A key client cuts their training budget. Lose $8,000 now, or lose 3 reputation.</p>
+          <div class="fbtns">
+            <button>Pay $8,000</button>
+            <button>Take the rep hit (-3)</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 5. ACHIEVEMENTS ===== -->
+<section class="section" id="s5">
+  <div class="sec-head">Achievements</div>
+  <div class="sec-sub">4 / 9 UNLOCKED</div>
+  <div class="ach-wrap"><div class="ach-grid">
+    <div class="ach unlocked"><div class="medal">🥇</div><h5>First hire</h5><p>HIRE YOUR FIRST EMPLOYEE</p></div>
+    <div class="ach unlocked"><div class="medal">🤝</div><h5>Deal maker</h5><p>ACCEPT YOUR FIRST BRIEF</p></div>
+    <div class="ach unlocked"><div class="medal">📦</div><h5>Shipped it</h5><p>DELIVER A PROJECT ON TIME</p></div>
+    <div class="ach unlocked"><div class="medal">🏛️</div><h5>Full house</h5><p>ACTIVATE 6 DEPARTMENTS</p></div>
+    <div class="ach locked"><div class="medal">💎</div><h5>Half-millionaire</h5><p>REACH $500,000</p><div class="achbar"><i style="width:30%"></i></div></div>
+    <div class="ach locked"><div class="medal">🌟</div><h5>Famous</h5><p>REACH 100 REPUTATION</p><div class="achbar"><i style="width:62%"></i></div></div>
+    <div class="ach locked"><div class="medal">🚀</div><h5>Serial deliverer</h5><p>DELIVER 10 PROJECTS</p><div class="achbar"><i style="width:40%"></i></div></div>
+    <div class="ach locked"><div class="medal">🧲</div><h5>Talent magnet</h5><p>EMPLOY 20 PEOPLE</p><div class="achbar"><i style="width:55%"></i></div></div>
+    <div class="ach locked"><div class="medal">👑</div><h5>The HNI way</h5><p>FINISH 5 YEARS QUALIFIED</p></div>
+  </div></div>
+</section>
+
+<script>
+// ---- tiny sound engine ----
+let AC=null;
+function tone(f,t,d,type,v,sl){AC=AC||new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();
+const o=AC.createOscillator(),g=AC.createGain(),s=AC.currentTime+(t||0);o.type=type||'triangle';o.frequency.setValueAtTime(f,s);
+if(sl)o.frequency.exponentialRampToValueAtTime(Math.max(30,f+sl),s+d);
+g.gain.setValueAtTime(0,s);g.gain.linearRampToValueAtTime(v||0.13,s+0.012);g.gain.exponentialRampToValueAtTime(0.0008,s+d);
+o.connect(g).connect(AC.destination);o.start(s);o.stop(s+d+0.05);}
+const snd={
+ nav(){tone(660,0,.06);tone(990,.05,.06)},
+ coin(){tone(990,0,.07,'square',.07);tone(1320,.07,.16,'square',.07)},
+ star(){tone(1047,0,.09);tone(1319,.09,.2)},
+ fanfare(){[392,523,659,784,1047].forEach((f,i)=>tone(f,i*.09,i===4?.5:.12))},
+ flip(){tone(300,0,.18,'triangle',.1,500)},
+};
+
+// ---- tabs ----
+const tabs=document.querySelectorAll('.proto-nav button');
+function show(id){
+ document.querySelectorAll('.section').forEach(s=>s.classList.toggle('on',s.id===id));
+ tabs.forEach(b=>b.classList.toggle('on',b.dataset.s===id));
+ if(id==='s3')runResults();
+}
+tabs.forEach(b=>b.addEventListener('click',()=>{snd.nav();show(b.dataset.s)}));
+
+// ---- end turn: coins then results ----
+document.getElementById('endTurn').addEventListener('click',e=>{
+ snd.coin();setTimeout(()=>snd.coin(),140);
+ const r=e.target.getBoundingClientRect();
+ for(let i=0;i<8;i++){const c=document.createElement('div');c.className='coin';c.textContent='+$';
+  c.style.left=(r.left+20+Math.random()*120)+'px';c.style.top=(r.top-10)+'px';
+  c.style.animationDelay=(i*70)+'ms';document.body.appendChild(c);setTimeout(()=>c.remove(),1600);}
+ setTimeout(()=>show('s3'),900);
+});
+
+// ---- results animation ----
+function count(el,to,pre,suf,neg){let s=performance.now();
+ (function step(n){const p=Math.min(1,(n-s)/900),e=1-Math.pow(1-p,3);
+  el.textContent=(neg?'-$':pre)+Math.round(to*e).toLocaleString()+(suf||'');
+  if(p<1)requestAnimationFrame(step);})(s);}
+function runResults(){
+ const st=document.querySelectorAll('#stars span');
+ st.forEach(x=>{x.className='';x.style.animation='none';x.offsetHeight;x.style.animation='';});
+ count(document.getElementById('rv'),34000,'+$','');
+ count(document.getElementById('ex'),21500,'-','',true);
+ count(document.getElementById('rp'),8,'+','');
+ document.getElementById('pd').textContent='2 / 3';
+ [0,1].forEach(i=>setTimeout(()=>{st[i].classList.add('lit');snd.star()},500+i*450));
+ setTimeout(()=>{st[2].classList.add('dim')},500+2*450);
+ setTimeout(()=>snd.fanfare(),1700);
+}
+document.getElementById('replay').addEventListener('click',()=>{snd.nav();show('s1')});
+
+// ---- fate card ----
+const fate=document.getElementById('fate');
+fate.addEventListener('click',ev=>{
+ if(ev.target.tagName==='BUTTON'){snd.coin();fate.classList.remove('flipped');return;}
+ fate.classList.toggle('flipped');snd.flip();
+});
+</script>
+</body>
+</html>

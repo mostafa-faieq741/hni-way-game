@@ -7,6 +7,7 @@
 import React from 'react'
 import { GAME_CONFIG } from '../../data/gameConfig.js'
 import SmartPlayTip from '../../components/SmartPlayTip.jsx'
+import { diagnoseYear } from '../../data/yearInsights.js'
 
 export default function YearSummaryScreen({ gs, completedYear, onContinue }) {
   const year = completedYear ?? gs.currentYear - 1
@@ -15,18 +16,18 @@ export default function YearSummaryScreen({ gs, completedYear, onContinue }) {
     (sum, d) => sum + d.specialists + d.consultants, 0
   )
 
-  // Strategic insight logic
-  const insight = gs.netProfit >= 50_000
-    ? 'Strong financial performance. Your department investments are paying off. Continue building your department for next year.'
-    : gs.netProfit >= 0
-      ? 'Solid foundations. You broke even or made a small profit. Focus on securing higher-value projects next year to grow cash reserves.'
-      : 'Cash pressure is real. Review your fixed costs and consider whether all active departments are earning their keep.'
+  // Adaptive year-end diagnostic (mirrors the deck's 12 what-if scenarios).
+  const diagnosis = diagnoseYear(gs)
+  const toneAccent = {
+    positive: 'var(--c-success, #0c6e3a)',
+    caution:  'var(--c-gold, #c79200)',
+    critical: 'var(--c-danger, #c0392b)',
+  }[diagnosis.tone] || 'var(--c-primary)'
 
-  const recommendation = gs.reputation < 50
-    ? 'Focus on delivering existing projects on time to build reputation. Reputation unlocks more valuable opportunities.'
-    : gs.reputation >= GAME_CONFIG.winReputationThreshold
-      ? 'Excellent reputation! You are leaderboard qualified. Keep it above 100 through the final year.'
-      : `You need ${GAME_CONFIG.winReputationThreshold - gs.reputation} more reputation points to qualify for the leaderboard.`
+  // Reputation progress note kept as a secondary line.
+  const repNote = gs.reputation >= GAME_CONFIG.winReputationThreshold
+    ? 'Reputation is above 100 — you are leaderboard qualified. Keep it there.'
+    : `${GAME_CONFIG.winReputationThreshold - gs.reputation} more reputation points to qualify for the leaderboard.`
 
   return (
     <div style={{ maxWidth: 780, margin: '0 auto', padding: 'var(--sp-6) var(--sp-4)' }}>
@@ -51,25 +52,38 @@ export default function YearSummaryScreen({ gs, completedYear, onContinue }) {
 
       {/* KPI grid */}
       <div className="summary-kpi-grid" style={{ marginBottom: 'var(--sp-6)' }}>
-        <KpiCard label="Total Revenue" value={`${gs.totalRevenue.toLocaleString()} Ħ`} positive />
-        <KpiCard label="Total Expenses" value={`${gs.totalCosts.toLocaleString()} Ħ`} />
-        <KpiCard label="Net Profit" value={`${gs.netProfit.toLocaleString()} Ħ`} positive={gs.netProfit >= 0} negative={gs.netProfit < 0} />
+        <KpiCard label="Total Revenue" value={`$${gs.totalRevenue.toLocaleString()}`} positive />
+        <KpiCard label="Total Expenses" value={`$${gs.totalCosts.toLocaleString()}`} />
+        <KpiCard label="Net Profit" value={`$${gs.netProfit.toLocaleString()}`} positive={gs.netProfit >= 0} negative={gs.netProfit < 0} />
         <KpiCard label="Reputation" value={gs.reputation} />
         <KpiCard label="Employees" value={totalEmployees} />
         <KpiCard label="Active Projects" value={gs.activeProjects.length} />
       </div>
 
-      {/* Insight + recommendation */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--sp-5)', marginBottom: 'var(--sp-6)' }}>
-        <div className="card" style={{ borderLeft: '4px solid var(--c-primary)' }}>
-          <div className="alert-box__label">Strategic Insight</div>
-          <p style={{ fontSize: 14, color: 'var(--c-text)', lineHeight: 1.7, marginTop: 6 }}>{insight}</p>
+      {/* Adaptive strategic insight */}
+      <div className="card" style={{ borderLeft: `4px solid ${toneAccent}`, marginBottom: 'var(--sp-5)' }}>
+        <div className="alert-box__label">Strategic Insight</div>
+        <div style={{ fontFamily: 'var(--f-heading)', fontWeight: 800, fontSize: 17, color: 'var(--c-rich-black)', margin: '4px 0 6px' }}>
+          {diagnosis.title}
         </div>
-        <div className="card" style={{ borderLeft: '4px solid var(--c-gold)', background: 'var(--c-gold-lt)' }}>
-          <div style={{ fontFamily: 'var(--f-heading)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8a6900', marginBottom: 6 }}>
-            Recommendation
-          </div>
-          <p style={{ fontSize: 14, color: 'var(--c-dark-grey)', lineHeight: 1.7 }}>{recommendation}</p>
+        <p style={{ fontSize: 14, color: 'var(--c-text)', lineHeight: 1.7, margin: 0 }}>{diagnosis.insight}</p>
+      </div>
+
+      {/* Recommendations */}
+      <div className="card" style={{ background: 'var(--c-gold-lt)', borderLeft: '4px solid var(--c-gold)', marginBottom: 'var(--sp-6)' }}>
+        <div style={{ fontFamily: 'var(--f-heading)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8a6900', marginBottom: 10 }}>
+          Recommendations
+        </div>
+        <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none', display: 'grid', gap: 8 }}>
+          {diagnosis.recommendations.map((rec, i) => (
+            <li key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 14, color: 'var(--c-dark-grey)', lineHeight: 1.6 }}>
+              <span style={{ color: 'var(--c-gold, #c79200)', fontWeight: 800, flexShrink: 0 }}>→</span>
+              <span>{rec}</span>
+            </li>
+          ))}
+        </ul>
+        <div style={{ fontSize: 12.5, color: 'var(--c-text-muted)', marginTop: 12, paddingTop: 10, borderTop: '1px solid rgba(0,0,0,0.08)' }}>
+          {repNote}
         </div>
       </div>
 

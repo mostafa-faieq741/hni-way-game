@@ -95,7 +95,7 @@ export default function ReadyToStartScreen({ onFinish }) {
             }}
           >
             {[
-              { label: 'Starting Cash', value: '100,000 Ħ' },
+              { label: 'Starting Cash', value: '$100,000' },
               { label: 'Starting Hires', value: '1 L&D + 1 Sales' },
               { label: 'Quarters', value: '20 total' },
               { label: 'Win Condition', value: 'Rep > 100' },

@@ -181,7 +181,7 @@ export default function PlayerSetupScreen({ onGameReady }) {
             {/* Game info strip */}
             <div style={styles.infoStrip}>
               <div style={styles.infoItem}>
-                <span style={styles.infoValue}>100,000 Ħ</span>
+                <span style={styles.infoValue}>$100,000</span>
                 <span style={styles.infoLabel}>Starting Cash</span>
               </div>
               <div style={styles.infoDivider} />

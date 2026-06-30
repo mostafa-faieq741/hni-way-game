@@ -8,16 +8,13 @@ export default defineConfig({
 
   // ── Dev server ─────────────────────────────────────────────────────────────
   server: {
-    // Proxy /api/* to a local Express or Vercel dev server when developing
-    // backend routes locally. Run `vercel dev` or `node api/server.js` on
-    // port 3001, then uncomment the proxy below.
-    //
-    // proxy: {
-    //   '/api': {
-    //     target: 'http://localhost:3001',
-    //     changeOrigin: true,
-    //   },
-    // },
+    // Proxy /api/* to the local backend (npm run dev:api on port 3001).
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+    },
   },
 
   build: {

@@ -28,7 +28,7 @@ export default function DepartmentDetailScreen({ dept, gs, onHire, onFire, onTra
     const cost = type === 'specialist' ? GAME_CONFIG.specialistCostPerQuarter : GAME_CONFIG.consultantCostPerQuarter
     askConfirm({
       title: 'Confirm hire',
-      body: 'Are you sure you want to hire 1 ' + type + ' for ' + dept.name + '? This will add ' + cost.toLocaleString() + ' Ħ/quarter in fixed expenses.',
+      body: 'Are you sure you want to hire 1 ' + type + ' for ' + dept.name + '? This will add ' + '$' + cost.toLocaleString() + '/quarter in fixed expenses.',
       confirmLabel: 'Yes, hire',
       tone: 'primary',
       run: () => { onHire(dept.id, type); onShowToast((type === 'specialist' ? 'Specialist' : 'Consultant') + ' hired in ' + dept.name + '.') },
@@ -122,7 +122,7 @@ export default function DepartmentDetailScreen({ dept, gs, onHire, onFire, onTra
             <StaffRow
               label="Specialists"
               count={specialists}
-              costLabel={'' + GAME_CONFIG.specialistCostPerQuarter.toLocaleString() + ' Ħ/qtr each'}
+              costLabel={'' + '$' + GAME_CONFIG.specialistCostPerQuarter.toLocaleString() + '/qtr each'}
               onHire={() => doHire('specialist')}
               onFire={() => doFire('specialist')}
             />
@@ -130,7 +130,7 @@ export default function DepartmentDetailScreen({ dept, gs, onHire, onFire, onTra
             <StaffRow
               label="Consultants"
               count={consultants}
-              costLabel={'' + GAME_CONFIG.consultantCostPerQuarter.toLocaleString() + ' Ħ/qtr each'}
+              costLabel={'' + '$' + GAME_CONFIG.consultantCostPerQuarter.toLocaleString() + '/qtr each'}
               onHire={() => doHire('consultant')}
               onFire={() => doFire('consultant')}
             />
@@ -141,7 +141,7 @@ export default function DepartmentDetailScreen({ dept, gs, onHire, onFire, onTra
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
               <span style={{ fontSize: 13, color: 'var(--c-text-muted)' }}>Quarterly cost</span>
               <span style={{ fontFamily: 'var(--f-heading)', fontWeight: 700, color: 'var(--c-primary)' }}>
-                {(specialists * GAME_CONFIG.specialistCostPerQuarter + consultants * GAME_CONFIG.consultantCostPerQuarter).toLocaleString()} Ħ
+                ${(specialists * GAME_CONFIG.specialistCostPerQuarter + consultants * GAME_CONFIG.consultantCostPerQuarter).toLocaleString()}
               </span>
             </div>
           </div>

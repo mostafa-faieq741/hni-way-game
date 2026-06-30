@@ -1,0 +1,300 @@
+[
+  {
+    "id": "PRJ-001",
+    "code": "PRJ-001",
+    "title": "New Manager Induction Programme",
+    "stars": 1,
+    "level": 1,
+    "durationQuarters": 1,
+    "minReputation": 0,
+    "revenue": 18000,
+    "cost": 9000,
+    "reputationImpact": 5,
+    "clientBrief": "A regional logistics firm needs a one-day induction programme for newly promoted managers. Content covers leadership basics, company culture, and performance expectations.",
+    "costBreakdown": "Facilitation: $4,000 - Materials: $3,000 - Admin: $2,000",
+    "bonusCondition": "Deliver on time for +3 extra reputation.",
+    "failCondition": "Late delivery results in -5 reputation and 20% revenue penalty.",
+    "executionTeams": [
+      "ld"
+    ],
+    "salesRequirement": {
+      "type": "specialist",
+      "count": 1
+    },
+    "availableFromQuarter": 1,
+    "availableToQuarter": 8,
+    "published": true,
+    "createdAt": "2026-06-29T12:45:32.762Z",
+    "updatedAt": "2026-06-29T12:45:32.762Z"
+  },
+  {
+    "id": "PRJ-002",
+    "code": "PRJ-002",
+    "title": "Customer Service Skills Workshop",
+    "stars": 1,
+    "level": 1,
+    "durationQuarters": 1,
+    "minReputation": 0,
+    "revenue": 22000,
+    "cost": 11000,
+    "reputationImpact": 5,
+    "clientBrief": "A retail chain requests a half-day customer service skills workshop for 40 front-line staff. Focus on communication, complaint handling, and brand representation.",
+    "costBreakdown": "Facilitation: $5,000 - Workbooks: $3,000 - Venue support: $3,000",
+    "bonusCondition": "Client satisfaction score above 4.5/5 earns a $2,000 bonus.",
+    "failCondition": "Low satisfaction (<3.5/5) results in -5 reputation.",
+    "executionTeams": [
+      "ld"
+    ],
+    "salesRequirement": {
+      "type": "specialist",
+      "count": 1
+    },
+    "availableFromQuarter": 1,
+    "availableToQuarter": 8,
+    "published": true,
+    "createdAt": "2026-06-29T12:45:32.762Z",
+    "updatedAt": "2026-06-29T12:45:32.762Z"
+  },
+  {
+    "id": "PRJ-003",
+    "code": "PRJ-003",
+    "title": "Digital Onboarding E-Learning Suite",
+    "stars": 2,
+    "level": 2,
+    "durationQuarters": 2,
+    "minReputation": 10,
+    "revenue": 48000,
+    "cost": 21600,
+    "reputationImpact": 10,
+    "clientBrief": "A fintech company wants to replace their paper-based onboarding with a three-module e-learning suite. Modules cover compliance, tools training, and company values.",
+    "costBreakdown": "Instructional design: $8,000 - E-Learning build: $10,000 - Studio assets: $3,600",
+    "bonusCondition": "All three modules approved on first review earns +5 reputation.",
+    "failCondition": "Missing any module by the deadline results in -10 reputation and 30% revenue penalty.",
+    "executionTeams": [
+      "ld",
+      "elearning"
+    ],
+    "salesRequirement": {
+      "type": "specialist",
+      "count": 1
+    },
+    "availableFromQuarter": 1,
+    "availableToQuarter": 10,
+    "published": true,
+    "createdAt": "2026-06-29T12:45:32.762Z",
+    "updatedAt": "2026-06-29T12:45:32.762Z"
+  },
+  {
+    "id": "PRJ-004",
+    "code": "PRJ-004",
+    "title": "Leadership Development Curriculum",
+    "stars": 2,
+    "level": 2,
+    "durationQuarters": 2,
+    "minReputation": 10,
+    "revenue": 52000,
+    "cost": 23400,
+    "reputationImpact": 10,
+    "clientBrief": "A healthcare group commissions a three-part leadership development curriculum for senior nurses moving into management. Covers strategic thinking, people management, and change leadership.",
+    "costBreakdown": "Curriculum design: $10,000 - Facilitation: $8,000 - Assessment tools: $5,400",
+    "bonusCondition": "Participants rate the programme 4.7+ earns +8 reputation.",
+    "failCondition": "Incomplete curriculum delivery results in -8 reputation.",
+    "executionTeams": [
+      "ld"
+    ],
+    "salesRequirement": {
+      "type": "specialist",
+      "count": 1
+    },
+    "availableFromQuarter": 2,
+    "availableToQuarter": 11,
+    "published": true,
+    "createdAt": "2026-06-29T12:45:32.762Z",
+    "updatedAt": "2026-06-29T12:45:32.762Z"
+  },
+  {
+    "id": "PRJ-007",
+    "code": "PRJ-007",
+    "title": "Team Building & Engagement Event",
+    "stars": 2,
+    "level": 2,
+    "durationQuarters": 1,
+    "minReputation": 5,
+    "revenue": 32000,
+    "cost": 14400,
+    "reputationImpact": 8,
+    "clientBrief": "A client wants a team-building event for 100 employees. They need the event documented with a videographer and photographer, and they request a trainer to facilitate the day.",
+    "costBreakdown": "Trainer: $5,000 - Media coverage: $4,400 - Materials: $5,000",
+    "bonusCondition": "Excellent feedback earns +5 reputation.",
+    "failCondition": "Logistics delays cost -3 reputation.",
+    "executionTeams": [
+      "gamification",
+      "resources"
+    ],
+    "salesRequirement": {
+      "type": "specialist",
+      "count": 1
+    },
+    "availableFromQuarter": 1,
+    "availableToQuarter": 12,
+    "published": true,
+    "createdAt": "2026-06-29T12:45:32.762Z",
+    "updatedAt": "2026-06-29T12:45:32.762Z"
+  },
+  {
+    "id": "PRJ-005",
+    "code": "PRJ-005",
+    "title": "National Sales Capability Programme",
+    "stars": 3,
+    "level": 3,
+    "durationQuarters": 3,
+    "minReputation": 50,
+    "revenue": 82000,
+    "cost": 27060,
+    "reputationImpact": 20,
+    "clientBrief": "A multinational FMCG company needs a blended sales capability programme for 200 regional sales managers across five countries. Includes e-learning modules, virtual workshops, and field coaching guides.",
+    "costBreakdown": "Programme design: $10,000 - E-Learning: $8,000 - Studio: $4,000 - Facilitation: $5,060",
+    "bonusCondition": "On-time completion across all regions earns +15 reputation and a $5,000 bonus.",
+    "failCondition": "Missing regional rollout by deadline incurs -15 reputation and 25% revenue penalty.",
+    "executionTeams": [
+      "ld",
+      "elearning"
+    ],
+    "salesRequirement": {
+      "type": "consultant",
+      "count": 1
+    },
+    "availableFromQuarter": 4,
+    "availableToQuarter": 14,
+    "published": true,
+    "createdAt": "2026-06-29T12:45:32.762Z",
+    "updatedAt": "2026-06-29T12:45:32.762Z"
+  },
+  {
+    "id": "PRJ-008",
+    "code": "PRJ-008",
+    "title": "Procurement-Heavy Public Tender",
+    "stars": 3,
+    "level": 3,
+    "durationQuarters": 3,
+    "minReputation": 50,
+    "revenue": 88000,
+    "cost": 26400,
+    "reputationImpact": 18,
+    "clientBrief": "A government agency has issued a multi-vendor tender for a workforce capability programme with strict procurement and compliance requirements.",
+    "costBreakdown": "Tender design: $10,000 - Compliance: $6,400 - Delivery: $10,000",
+    "bonusCondition": "Full compliance + on-time delivery earns +12 reputation.",
+    "failCondition": "Any compliance miss results in -10 reputation.",
+    "executionTeams": [
+      "procurement",
+      "ld"
+    ],
+    "salesRequirement": {
+      "type": "consultant",
+      "count": 1
+    },
+    "availableFromQuarter": 5,
+    "availableToQuarter": 14,
+    "published": true,
+    "createdAt": "2026-06-29T12:45:32.762Z",
+    "updatedAt": "2026-06-29T12:45:32.762Z"
+  },
+  {
+    "id": "PRJ-006",
+    "code": "PRJ-006",
+    "title": "Enterprise Learning Transformation Programme",
+    "stars": 4,
+    "level": 4,
+    "durationQuarters": 4,
+    "minReputation": 100,
+    "revenue": 480000,
+    "cost": 120000,
+    "reputationImpact": 40,
+    "clientBrief": "A global bank wants to transform its entire learning function across 12 countries. The scope includes strategy design, LMS implementation, content migration, capability frameworks, a gamified leadership academy, and a full measurement and evaluation system.",
+    "costBreakdown": "Strategy: $30,000 - LMS: $25,000 - Content: $20,000 - Gamification: $15,000 - Ops: $20,000 - QA: $10,000",
+    "bonusCondition": "Full delivery and board sign-off earns +30 reputation and $30,000 bonus.",
+    "failCondition": "Any major milestone missed results in -25 reputation and contract termination.",
+    "executionTeams": [
+      "ld",
+      "elearning",
+      "gamification",
+      "operations"
+    ],
+    "salesRequirement": {
+      "type": "consultant",
+      "count": 2
+    },
+    "availableFromQuarter": 8,
+    "availableToQuarter": 20,
+    "published": true,
+    "createdAt": "2026-06-29T12:45:32.762Z",
+    "updatedAt": "2026-06-29T12:45:32.762Z"
+  },
+  {
+    "id": "PRJ-009",
+    "code": "PRJ-009",
+    "createdAt": "2026-06-30T05:30:06.712Z",
+    "updatedAt": "2026-06-30T05:30:06.712Z",
+    "title": "Test",
+    "clientBrief": "This is a test project to see if the feature working properly",
+    "stars": 2,
+    "durationQuarters": 1,
+    "minReputation": 20,
+    "revenue": 20000,
+    "cost": 8000,
+    "reputationImpact": 20,
+    "executionTeams": [
+      "gamification",
+      "resources",
+      "studio",
+      "elearning"
+    ],
+    "salesRequirement": {
+      "type": "consultant",
+      "count": 1
+    },
+    "availableFromQuarter": 1,
+    "availableToQuarter": 20,
+    "costBreakdown": "",
+    "bonusCondition": "",
+    "failCondition": "",
+    "published": true,
+    "level": 2,
+    "quarterAvailable": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20
+    ],
+    "requiredDepartments": [
+      "sales",
+      "gamification",
+      "resources",
+      "studio",
+      "elearning"
+    ],
+    "matchedDepartments": [
+      "sales",
+      "gamification",
+      "resources",
+      "studio",
+      "elearning"
+    ]
+  }
+]

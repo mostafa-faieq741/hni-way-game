@@ -2414,6 +2414,7 @@ a { color: inherit; text-decoration: none; }
 
 .status-pill--active   { background: var(--c-success-bg); color: var(--c-success); border: 1px solid #a7d8bc; }
 .status-pill--overdue  { background: var(--c-error-bg);   color: var(--c-error);   border: 1px solid #fca5a5; }
+.status-pill--delayed  { background: var(--c-gold-lt);   color: #8a6900;          border: 1px solid rgba(201,146,0,0.35); }
 .status-pill--delivered{ background: var(--c-primary-lt); color: var(--c-primary); border: 1px solid #ecd5e2; }
 
 /* ────────────────────────────────────────────────────────
@@ -3203,10 +3204,17 @@ a { color: inherit; text-decoration: none; }
 
 /* ── Company Health collapse toggle ── */
 .totals-toggle {
+  display: inline-flex; align-items: center; gap: 5px;
   font-family: var(--f-heading); font-weight: 700; font-size: 11px;
-  color: var(--c-primary); background: none; border: none; cursor: pointer;
+  color: var(--c-primary);
+  background: var(--c-primary-lt, rgba(145,25,90,0.08));
+  border: 1px solid var(--c-primary);
+  border-radius: 9999px;
+  padding: 3px 12px; cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
 }
-.totals-toggle:hover { text-decoration: underline; }
+.totals-toggle:hover { background: var(--c-primary); color: #fff; }
+.totals-toggle:focus-visible { outline: 2px solid var(--c-primary); outline-offset: 2px; }
 
 /* ── Inline accept blocker (replaces click-time toasts) ── */
 .accept-blocker {
@@ -3314,4 +3322,125 @@ a { color: inherit; text-decoration: none; }
 
 @media (max-width: 720px) {
   .pipeline-row { grid-template-columns: 1fr; }
+}
+
+/* ────────────────────────────────────────────────────────
+   SPOTLIGHT TOUR (dim screen, highlight one element)
+   ──────────────────────────────────────────────────────── */
+.tour-root {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  pointer-events: none;
+}
+.tour-blocker {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+  cursor: not-allowed;
+}
+.tour-dim-fallback {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 12, 20, 0.72);
+}
+.tour-hole {
+  position: absolute;
+  border-radius: 12px;
+  box-shadow: 0 0 0 9999px rgba(8, 12, 20, 0.72);
+  outline: 2px solid var(--c-primary);
+  outline-offset: 2px;
+  pointer-events: none;
+  transition: left 180ms ease, top 180ms ease, width 180ms ease, height 180ms ease;
+  animation: tourPulse 1.6s ease-in-out infinite;
+}
+@keyframes tourPulse {
+  0%, 100% { outline-color: var(--c-primary); }
+  50%      { outline-color: var(--c-gold, #f0b429); }
+}
+.tour-tip {
+  position: absolute;
+  pointer-events: auto;
+  background: var(--c-surface, #fff);
+  color: var(--c-text);
+  border: 1px solid var(--c-border);
+  border-top: 4px solid var(--c-primary);
+  border-radius: var(--r-lg, 14px);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+  padding: 16px 18px 14px;
+  z-index: 1;
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+  transition: left 140ms ease, top 140ms ease, opacity 120ms ease;
+}
+.tour-tip__top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.tour-tip__count {
+  font-family: var(--f-mono, monospace);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--c-text-muted);
+  letter-spacing: 0.05em;
+}
+.tour-tip__chip {
+  font-family: var(--f-heading);
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--c-primary);
+  background: var(--c-primary-lt, rgba(40,90,200,0.1));
+  border-radius: var(--r-full, 999px);
+  padding: 3px 10px;
+}
+.tour-tip__skip {
+  margin-left: auto;
+  background: none;
+  border: none;
+  font-size: 11px;
+  color: var(--c-text-muted);
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+.tour-tip__title {
+  font-family: var(--f-heading);
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--c-text);
+  margin-bottom: 6px;
+}
+.tour-tip__body {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--c-text);
+}
+.tour-tip__hint {
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--c-primary);
+  background: var(--c-primary-lt, rgba(40,90,200,0.08));
+  border-radius: var(--r-md, 10px);
+  padding: 7px 10px;
+}
+.tour-tip__actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+/* Quarter 0 practice badge */
+.game-topbar__badge--practice {
+  background: var(--c-gold-lt, #fff4d6) !important;
+  color: #8a6900 !important;
+  border: 1px solid var(--c-gold, #f0b429) !important;
+  animation: tourPulse 2s ease-in-out infinite;
+}
+.hud-iconbtn--tour {
+  background: var(--c-gold-lt, #fff4d6);
+  border-color: var(--c-gold, #f0b429);
 }

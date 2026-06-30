@@ -1,4 +1,5 @@
 import React from 'react'
+import ContractCard from '../../components/ContractCard.jsx'
 import { getProjectById, renderStars } from '../../data/projects.js'
 import SmartPlayTip from '../../components/SmartPlayTip.jsx'
 import TutorialOverlay from '../../components/TutorialOverlay.jsx'
@@ -17,7 +18,7 @@ export default function SalesRequestListScreen({ gs, onGoBack, onOpenProject }) 
   const sales = gs.departments.find((d) => d.id === 'sales') || { specialists: 0, consultants: 0 }
   const salesCapacity = sales.specialists * 2 + sales.consultants * 4
 
-  const offered = (gs.quarterBriefIds || []).map(getProjectById).filter(Boolean)
+  const offered = gs.quarterBriefs || []
   // Show only briefs still awaiting a decision.
   const projects = offered.filter(
     (p) => !acceptedIds.has(p.id) && !rejectedIds.has(p.id) && !completedIds.has(p.id)
@@ -32,7 +33,7 @@ export default function SalesRequestListScreen({ gs, onGoBack, onOpenProject }) 
         screenId="sales-requests"
         title="Sales Requests"
         steps={[
-          'These are the project briefs your Sales department surfaced this quarter.',
+          'These are the project briefs your Sales department surfaced this quarter - each brief lists the teams it needs.',
           'How many briefs appear depends on your sales staff: specialist = 2 briefs, consultant = 4 briefs.',
           'Accepting or rejecting a brief removes it from this list — accepted briefs move to Active Projects. New briefs appear when you hire more Sales staff or next quarter.',
         ]}
@@ -70,26 +71,13 @@ export default function SalesRequestListScreen({ gs, onGoBack, onOpenProject }) 
         )}
 
         {projects.map((proj) => (
-          <button
+          <ContractCard
             key={proj.id}
-            className="project-card"
-            onClick={() => onOpenProject(proj)}
-            style={{ textAlign: 'left', fontFamily: 'inherit', position: 'relative' }}
-          >
-            <div>
-              <div className="project-card__code">{proj.code}</div>
-              <div className="project-card__title">{proj.title}</div>
-              <div className="project-card__meta">
-                <span className="project-card__stars">{renderStars(proj.stars)}</span>
-                <span>- {proj.durationQuarters} quarter{proj.durationQuarters !== 1 ? 's' : ''}</span>
-                <span>- Min rep: {proj.minReputation}</span>
-              </div>
-            </div>
-            <div>
-              <div className="project-card__revenue">{proj.revenue.toLocaleString()} Ħ</div>
-              <div className="project-card__duration">{proj.durationQuarters} qtr</div>
-            </div>
-          </button>
+            project={proj}
+            cta="Open"
+            state={acceptedIds.has(proj.id) ? 'accepted' : completedIds.has(proj.id) ? 'completed' : undefined}
+            onOpen={onOpenProject}
+          />
         ))}
       </div>
     </div>

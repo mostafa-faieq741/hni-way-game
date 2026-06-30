@@ -83,7 +83,7 @@ export default function HireModal({ open, onClose, gs, onHire, onShowToast }) {
                 onClick={() => setType('specialist')}
               >
                 <div className="hire-type-btn__title">Specialist</div>
-                <div className="hire-type-btn__cost">{GAME_CONFIG.specialistCostPerQuarter.toLocaleString()} Ħ/qtr</div>
+                <div className="hire-type-btn__cost">${GAME_CONFIG.specialistCostPerQuarter.toLocaleString()}/qtr</div>
                 <div className="hire-type-btn__hint">Handles 2 active projects</div>
               </button>
               <button
@@ -92,7 +92,7 @@ export default function HireModal({ open, onClose, gs, onHire, onShowToast }) {
                 onClick={() => setType('consultant')}
               >
                 <div className="hire-type-btn__title">Consultant</div>
-                <div className="hire-type-btn__cost">{GAME_CONFIG.consultantCostPerQuarter.toLocaleString()} Ħ/qtr</div>
+                <div className="hire-type-btn__cost">${GAME_CONFIG.consultantCostPerQuarter.toLocaleString()}/qtr</div>
                 <div className="hire-type-btn__hint">Handles 4 active projects</div>
               </button>
             </div>
@@ -100,7 +100,7 @@ export default function HireModal({ open, onClose, gs, onHire, onShowToast }) {
 
           <div className="hire-summary">
             <span>Hiring 1 {type} for {dept.name}.</span>
-            <strong>+{cost.toLocaleString()} Ħ fixed expenses/quarter</strong>
+            <strong>+${cost.toLocaleString()} fixed expenses/quarter</strong>
           </div>
 
           {error && (
@@ -128,7 +128,7 @@ export default function HireModal({ open, onClose, gs, onHire, onShowToast }) {
             <div className="confirm-modal__title">Confirm hire</div>
             <div className="confirm-modal__body">
               Are you sure you want to hire 1 {type} for <strong>{dept.name}</strong>?
-              This will add <strong>{cost.toLocaleString()} Ħ/quarter</strong> in fixed expenses.
+              This will add <strong>${cost.toLocaleString()}/quarter</strong> in fixed expenses.
             </div>
             <div className="confirm-modal__actions">
               <button className="btn btn--secondary btn--md" onClick={() => setConfirming(false)}>Cancel</button>

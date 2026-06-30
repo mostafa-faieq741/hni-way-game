@@ -18,10 +18,10 @@ export const objectives = {
 export const startingSetup = {
   sectionLabel: 'HNI Way',
   statCards: [
-    { value: '100,000 Hanoon', label: 'Starting Cash' },
+    { value: '$100,000', label: 'Starting Cash' },
     { value: '2',       label: 'Starting Department', sub: '1 L&D + 1 Sales (pre-hired)' },
-    { value: '5,000 Hanoon', label: 'Specialist Cost' },
-    { value: '10,000 Hanoon', label: 'Consultant Cost' },
+    { value: '$5,000', label: 'Specialist Cost' },
+    { value: '$10,000', label: 'Consultant Cost' },
   ],
   panels: [
     {

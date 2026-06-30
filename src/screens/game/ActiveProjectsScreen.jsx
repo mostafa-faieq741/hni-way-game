@@ -8,7 +8,10 @@ import React from 'react'
 import SmartPlayTip from '../../components/SmartPlayTip.jsx'
 import TutorialOverlay from '../../components/TutorialOverlay.jsx'
 import { renderStars } from '../../data/projects.js'
-import { MAX_ACTIVE_PROJECTS } from '../../data/projectLifecycle.js'
+import { MAX_ACTIVE_PROJECTS, projectCoverage } from '../../data/projectLifecycle.js'
+import { DEPARTMENTS_DATA } from '../../data/departments.js'
+
+const AP_DEPT = DEPARTMENTS_DATA.reduce((m, d) => { m[d.id] = d.name; return m }, {})
 
 export default function ActiveProjectsScreen({ gs, onGoBack, onOpenActive }) {
   const projects = gs.activeProjects ?? []
@@ -22,7 +25,7 @@ export default function ActiveProjectsScreen({ gs, onGoBack, onOpenActive }) {
         title="Active Projects"
         steps={[
           'These are the projects you have already accepted that are still running.',
-          'Each tile shows the planned end quarter and any overdue penalties.',
+          'A project marked Delayed is waiting for team capacity - it is not lost, it resumes once you staff up.',
           'You can hold up to 8 projects at the same time. Deliver them before taking on more.',
         ]}
       />
@@ -48,7 +51,15 @@ export default function ActiveProjectsScreen({ gs, onGoBack, onOpenActive }) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)', marginTop: 'var(--sp-5)' }}>
           {projects.map((p) => {
+            const delayed = p.status === 'delayed'
             const overdue = p.status === 'overdue'
+            const cov = projectCoverage(p, gs)
+            const shortTeams = cov.teams.filter((t) => !t.ok).map((t) => AP_DEPT[t.id] || t.id)
+            const pill = delayed
+              ? { cls: 'delayed', label: 'Delayed' }
+              : overdue
+                ? { cls: 'overdue', label: 'Overdue' }
+                : { cls: 'active', label: 'Active' }
             return (
               <button
                 key={p.id}
@@ -61,8 +72,8 @@ export default function ActiveProjectsScreen({ gs, onGoBack, onOpenActive }) {
                     <div className="project-card__code">{p.code}</div>
                     <div className="project-card__title">{p.title}</div>
                   </div>
-                  <span className={`status-pill status-pill--${overdue ? 'overdue' : 'active'}`}>
-                    {overdue ? 'Overdue' : 'Active'}
+                  <span className={`status-pill status-pill--${pill.cls}`}>
+                    {pill.label}
                   </span>
                 </div>
 
@@ -70,14 +81,20 @@ export default function ActiveProjectsScreen({ gs, onGoBack, onOpenActive }) {
                   <span>{renderStars(p.stars)}</span>
                   <span>· {p.durationQuarters} qtr planned</span>
                   <span>· {Math.max(0, p.quartersLeft)} left</span>
-                  {overdue && <span style={{ color: 'var(--c-error)' }}>· {p.overdueQuarters} overdue qtr{p.overdueQuarters !== 1 ? 's' : ''}</span>}
+                  {(delayed || overdue) && <span style={{ color: 'var(--c-error)' }}>· {p.overdueQuarters} late qtr{p.overdueQuarters !== 1 ? 's' : ''}</span>}
                 </div>
 
+                {(delayed || (!cov.covered && shortTeams.length > 0)) && (
+                  <div className="active-proj-card__short">
+                    Waiting on capacity: {shortTeams.length > 0 ? shortTeams.join(', ') : (cov.gateOk ? '—' : 'Reputation')}
+                  </div>
+                )}
+
                 <div className="active-proj-card__grid">
-                  <Stat label="Cost paid"      value={`${p.cost.toLocaleString()} Ħ`} />
-                  <Stat label="Expected revenue" value={`${p.revenue.toLocaleString()} Ħ`} positive />
+                  <Stat label="Cost paid"      value={`$${p.cost.toLocaleString()}`} />
+                  <Stat label="Expected revenue" value={`$${p.revenue.toLocaleString()}`} positive />
                   <Stat label="Reputation impact" value={`+${p.reputationImpact}`} />
-                  <Stat label="Extra cost so far" value={`${(p.extraCosts ?? 0).toLocaleString()} Ħ`} negative={p.extraCosts > 0} />
+                  <Stat label="Extra cost so far" value={`$${(p.extraCosts ?? 0).toLocaleString()}`} negative={p.extraCosts > 0} />
                 </div>
               </button>
             )

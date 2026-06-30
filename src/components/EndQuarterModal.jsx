@@ -21,7 +21,7 @@ import {
   resolveProjectsForQuarter,
 } from '../data/projectLifecycle.js'
 
-const money = (n) => (n < 0 ? '-' : '') + Math.abs(n).toLocaleString() + ' Ħ'
+const money = (n) => (n < 0 ? '-' : '') + '$' + Math.abs(n).toLocaleString() + ''
 
 export default function EndQuarterModal({ mode = 'preview', gs, summary, onConfirm, onCancel, onClose }) {
   if (mode === 'summary') {

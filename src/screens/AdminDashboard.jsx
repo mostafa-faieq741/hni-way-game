@@ -1,14 +1,15 @@
-import React from 'react'
+import React, { useState } from 'react'
 import HNILogo from '../components/HNILogo.jsx'
 import Button from '../components/Button.jsx'
 import { getAllPlayers, getKpis, rankByNetProfit, getInitials, QUALIFY } from '../data/adminData.js'
+import ManageProjects from './admin/ManageProjects.jsx'
 
-const fmtMoney = (n) => Math.round(n).toLocaleString() + ' Ħ'
+const fmtMoney = (n) => '$' + Math.round(n).toLocaleString()
 const fmtShort = (n) => {
   const a = Math.abs(n)
-  if (a >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M Ħ'
-  if (a >= 1_000) return Math.round(n / 1_000) + 'k Ħ'
-  return Math.round(n) + ' Ħ'
+  if (a >= 1_000_000) return '$' + (n / 1_000_000).toFixed(1) + 'M'
+  if (a >= 1_000) return '$' + Math.round(n / 1_000) + 'k'
+  return '$' + Math.round(n)
 }
 
 function StatCard({ label, value, sub }) {
@@ -67,6 +68,7 @@ function StatusBadge({ status }) {
 }
 
 export default function AdminDashboard({ onSignOut }) {
+  const [tab, setTab] = useState('stats')
   const players = getAllPlayers()
   const kpis = getKpis(players)
   const ranked = rankByNetProfit(players)
@@ -95,6 +97,18 @@ export default function AdminDashboard({ onSignOut }) {
 
       <main className="app-main">
         <div className="screen" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-6)' }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {[['stats', 'Player Statistics'], ['projects', 'Manage Projects']].map(([key, label]) => (
+              <button key={key} onClick={() => setTab(key)}
+                className={'btn ' + (tab === key ? 'btn--primary' : 'btn--secondary')} style={{ fontSize: 13 }}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {tab === 'projects' && <ManageProjects />}
+
+          {tab === 'stats' && (<>
           <div>
             <span className="section-label" style={{ color: 'var(--c-primary)' }}>Statistics</span>
             <h1 style={{ fontFamily: 'var(--f-heading)', fontSize: 26, fontWeight: 800, margin: '6px 0 0' }}>Player Performance</h1>
@@ -171,6 +185,7 @@ export default function AdminDashboard({ onSignOut }) {
               </table>
             </div>
           </div>
+          </>)}
         </div>
       </main>
     </div>

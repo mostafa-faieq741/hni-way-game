@@ -12,6 +12,8 @@ import LeaderboardModal from '../../components/LeaderboardModal.jsx'
 import EventModal from '../../components/EventModal.jsx'
 import StatFloater from '../../components/StatFloater.jsx'
 import EndQuarterModal from '../../components/EndQuarterModal.jsx'
+import ConfirmDialog from '../../components/ConfirmDialog.jsx'
+import SpotlightTour from '../../components/SpotlightTour.jsx'
 import AnimatedNumber from '../../components/AnimatedNumber.jsx'
 import { play, isMuted, toggleMuted } from '../../services/sounds.js'
 
@@ -40,6 +42,44 @@ import { buildQuarterBriefs } from '../../data/projects.js'
 const TAB_TO_SCREEN = { home: 'home', forecast: 'forecast', finance: 'finance' }
 const HIDE_NAV_ON = new Set(['year-summary', 'final-report'])
 
+const TAB_LABEL = { home: 'Home', forecast: 'Forecast', finance: 'Finance' }
+const TOUR_DONE_KEY = 'hni_tour_done'
+
+// Guided spotlight tour. Each step targets a [data-tour="key"] element. `tab`
+// switches the active game tab before the element is measured.
+const TOUR_STEPS = [
+  { key: 'quarter', tab: 'home', title: 'Welcome — this is Quarter 0',
+    body: 'A free practice round. Try anything you like — hiring, buying the forecast, accepting projects. Nothing here counts. When you finish, the real game starts fresh at Quarter 1.' },
+  { key: 'cash', tab: 'home', title: 'This is your Cash',
+    body: 'You start every game with $100,000. You spend it on staff salaries, the yearly forecast, and accepting projects. Keep an eye on it.' },
+  { key: 'rep', tab: 'home', title: 'This is your Reputation',
+    body: 'Deliver projects on time to grow it. Firing staff or missing deadlines lowers it. Reach 100 reputation to qualify for the leaderboard.' },
+  { key: 'xp', tab: 'home', title: 'Reputation goal bar',
+    body: 'This XP bar fills as your reputation climbs toward the target of 100.' },
+  { key: 'hp', tab: 'home', title: 'Cash health bar',
+    body: 'Your HP bar tracks cash. If it runs dry for too long, the game ends — so spend wisely.' },
+  { key: 'departments', tab: 'home', title: 'Your departments',
+    body: 'These are your teams. Click any unit to manage it. Hire into HR first to unlock the other departments.',
+    hint: 'Click a department card to open it (during practice).' },
+  { key: 'hire', tab: 'home', title: 'Hire staff',
+    body: 'Use + Hire to add specialists ($5,000/qtr) or consultants ($10,000/qtr) to any department. More staff unlocks bigger projects.',
+    hint: 'Open the Hire panel to try it.' },
+  { key: 'sales', tab: 'home', title: 'Sales Requests',
+    body: 'Incoming project briefs land here. Click one to review the details, then accept the projects you want to deliver.',
+    hint: 'Click a brief to review it.' },
+  { key: 'active', tab: 'home', title: 'Active Projects',
+    body: 'Projects you accepted live here. Track how many quarters are left before each one delivers its revenue.' },
+  { key: 'forecast-buy', tab: 'forecast', title: 'The Forecast tab',
+    body: 'We just switched you to the Forecast tab. Buy it once per year ($15,000) to reveal the market trend and a staffing hint before you commit.' },
+  { key: 'finance-end', tab: 'finance', title: 'The Finance tab',
+    body: 'Now we are on Finance — your quarter numbers and last-quarter resolution. You can also end the quarter from here.' },
+  { key: 'endquarter', tab: 'home', title: 'End Quarter',
+    body: 'When you are done, press End Quarter. During Quarter 0 this ends practice and starts the real game at Quarter 1 — everything resets.',
+    hint: 'Press this when you have finished practising.' },
+  { key: 'nav-home', tab: 'home', title: 'Move around',
+    body: 'Use these tabs to switch between Home, Forecast and Finance any time. That is the whole game — go ahead and explore Quarter 0!' },
+]
+
 // Which top-level tab is "active" for a given sub-screen
 function tabForScreen(screen) {
   if (screen === 'forecast') return 'forecast'
@@ -65,7 +105,7 @@ function saveToLocalStorage(state) {
       rejectedCount: state.rejectedCount,
       rejectedIds: state.rejectedIds,
       quarterRejectedIds: state.quarterRejectedIds,
-      quarterBriefIds: state.quarterBriefIds,
+      quarterBriefs: state.quarterBriefs,
       completedProjects: state.completedProjects,
       forecastPurchasedByYear: state.forecastPurchasedByYear,
       yearSummaries: state.yearSummaries,
@@ -76,6 +116,7 @@ function saveToLocalStorage(state) {
       playerId: state.playerId,
       playerName: state.playerName,
       sessionStartedAt: state.sessionStartedAt,
+      practiceMode: state.practiceMode,
     }
     localStorage.setItem(DEMO_SAVE_KEY, JSON.stringify(snapshot))
   } catch (e) {
@@ -111,7 +152,7 @@ function buildInitialGs(setupResult) {
     rejectedCount:  0,
     rejectedIds:   [],
     quarterRejectedIds: [],
-    quarterBriefIds: [],
+    quarterBriefs: [],
     completedProjects: [],
     forecastPurchasedByYear: {},
     eventsTriggered:        [],
@@ -120,11 +161,23 @@ function buildInitialGs(setupResult) {
     yearSummaries:          [],
     lastResolution:         null,
     sessionStartedAt:       Date.now(),
+    practiceMode:           true,
   }
-  base.quarterBriefIds = buildQuarterBriefs(base, [])
+  base.quarterBriefs = buildQuarterBriefs(base, [])
   if (!setupResult?.isNewPlayer) {
     const saved = loadFromLocalStorage()
-    if (saved) return { ...base, ...saved }
+    if (saved) {
+      const merged = { ...base, ...saved }
+      // Migrate older saves (which stored brief IDs, not objects) and rebuild
+      // the brief set against the SAVED departments/quarter so sales capacity
+      // is reflected correctly.
+      const validBriefs = Array.isArray(merged.quarterBriefs) &&
+        merged.quarterBriefs.every((b) => b && typeof b === 'object')
+      if (!validBriefs) merged.quarterBriefs = buildQuarterBriefs(merged, [])
+      delete merged.quarterBriefIds
+      merged.practiceMode = saved.practiceMode === true
+      return merged
+    }
   }
   return base
 }
@@ -218,6 +271,10 @@ export default function GameContainer({ gameSetupResult }) {
   const [quarterProgress, setQuarterProgress] = useState({ forecast: false, accept: false, staff: false })
   // One-time 'wrap up' warning shown when little session time remains.
   const [showTimeWarning, setShowTimeWarning] = useState(false)
+  // Quarter 0 practice flow + guided spotlight tour.
+  const [practiceEndOpen, setPracticeEndOpen] = useState(false)
+  const [tourActive, setTourActive] = useState(false)
+  const [tourStep, setTourStep] = useState(0)
 
   const [muted, setMutedState] = useState(isMuted())
   const [theme, setTheme] = useState(() => {
@@ -279,7 +336,7 @@ export default function GameContainer({ gameSetupResult }) {
 
   // Immediate-loss thresholds: bankruptcy or reputation collapse ends the game.
   useEffect(() => {
-    if (lossReason || gameScreen === 'final-report') return
+    if (lossReason || gameScreen === 'final-report' || gs.practiceMode) return
     let reason = null
     if (gs.cash < GAME_CONFIG.loseCashFloor) reason = 'cash'
     else if (gs.reputation <= GAME_CONFIG.loseReputationFloor) reason = 'reputation'
@@ -291,7 +348,7 @@ export default function GameContainer({ gameSetupResult }) {
       setEventQueue([])
       setGameScreen('final-report')
     }
-  }, [gs.cash, gs.reputation, gameScreen, lossReason])
+  }, [gs.cash, gs.reputation, gameScreen, lossReason, gs.practiceMode])
 
   const updateGs = useCallback((patch) => {
     setGs((prev) => ({ ...prev, ...patch }))
@@ -345,10 +402,10 @@ export default function GameContainer({ gameSetupResult }) {
         overdueCodes: r.updatedProjects.filter((p) => p.status === 'overdue').map((p) => p.code),
       }
 
-      if (fixedExpenses > 0)     pushFloat('-' + fixedExpenses.toLocaleString() + ' Ħ fixed', 'negative')
-      if (recurring > 0)         pushFloat('-' + recurring.toLocaleString() + ' Ħ recurring', 'negative')
-      if (r.revenueGained > 0)   pushFloat('+' + r.revenueGained.toLocaleString() + ' Ħ revenue', 'positive')
-      if (r.extraCostsAdded > 0) pushFloat('-' + r.extraCostsAdded.toLocaleString() + ' Ħ overdue', 'negative')
+      if (fixedExpenses > 0)     pushFloat('-' + '$' + fixedExpenses.toLocaleString() + ' fixed', 'negative')
+      if (recurring > 0)         pushFloat('-' + '$' + recurring.toLocaleString() + ' recurring', 'negative')
+      if (r.revenueGained > 0)   pushFloat('+' + '$' + r.revenueGained.toLocaleString() + ' revenue', 'positive')
+      if (r.extraCostsAdded > 0) pushFloat('-' + '$' + r.extraCostsAdded.toLocaleString() + ' overdue', 'negative')
       if (r.reputationDelta !== 0) {
         const sign = r.reputationDelta > 0 ? '+' : ''
         pushFloat(sign + r.reputationDelta + ' rep', r.reputationDelta > 0 ? 'positive' : 'negative')
@@ -371,7 +428,7 @@ export default function GameContainer({ gameSetupResult }) {
       }
       // Fresh fixed brief set for the new quarter (none while game is over).
       newState.quarterRejectedIds = gameOver ? prev.quarterRejectedIds : []
-      newState.quarterBriefIds = gameOver ? prev.quarterBriefIds : buildQuarterBriefs(newState, [])
+      newState.quarterBriefs = gameOver ? prev.quarterBriefs : buildQuarterBriefs(newState, [])
       return newState
     })
 
@@ -403,7 +460,11 @@ export default function GameContainer({ gameSetupResult }) {
   }, [showToast, pushFloat])
 
   // Open the end-of-quarter preview (the explicit, deliberate commit point).
-  const requestEndQuarter = useCallback(() => { play('click'); setEndPreviewOpen(true) }, [])
+  const requestEndQuarter = useCallback(() => {
+    play('click')
+    if (gs.practiceMode) { setPracticeEndOpen(true); return }
+    setEndPreviewOpen(true)
+  }, [gs.practiceMode])
   const confirmEndQuarter = useCallback(() => {
     play('commit')
     setEndPreviewOpen(false)
@@ -436,12 +497,12 @@ export default function GameContainer({ gameSetupResult }) {
       }
       if (prev.cash < template.cost) {
         play('error')
-        showToast('Need ' + template.cost.toLocaleString() + ' Ħ cash to accept this project.')
+        showToast('Need ' + '$' + template.cost.toLocaleString() + ' cash to accept this project.')
         return prev
       }
       play('spend')
       const active = makeActiveProject(template, prev.overallQuarter)
-      pushFloat('-' + template.cost.toLocaleString() + ' Ħ cash', 'negative')
+      pushFloat('-' + '$' + template.cost.toLocaleString() + ' cash', 'negative')
       pushFloat('+1 active project', 'neutral')
       return {
         ...prev,
@@ -471,10 +532,10 @@ export default function GameContainer({ gameSetupResult }) {
     const cost = type === 'specialist' ? GAME_CONFIG.specialistCostPerQuarter : GAME_CONFIG.consultantCostPerQuarter
     play('hire')
     pushFloat('+1 employee', 'positive')
-    pushFloat('+' + cost.toLocaleString() + ' Ħ fixed/qtr', 'negative')
+    pushFloat('+' + '$' + cost.toLocaleString() + ' fixed/qtr', 'negative')
     setGs((prev) => {
       const next = patchDeptStaffing(prev, deptId, key, 1)
-      return { ...next, quarterBriefIds: buildQuarterBriefs(next, next.quarterBriefIds || []) }
+      return { ...next, quarterBriefs: buildQuarterBriefs(next, next.quarterBriefs || []) }
     })
     setQuarterProgress((p) => ({ ...p, staff: true }))
   }, [pushFloat, showToast])
@@ -519,6 +580,61 @@ export default function GameContainer({ gameSetupResult }) {
     showToast('Welcome to Year ' + gs.currentYear + '. Check the Forecast for this year.')
   }, [showToast, gs.currentYear])
 
+  // End Quarter 0: wipe practice progress and begin the real game at Q1.
+  const startRealGame = useCallback(() => {
+    try { localStorage.removeItem(DEMO_SAVE_KEY) } catch {}
+    const fresh = buildInitialGs({ player: { player_id: gs.playerId, display_name: gs.playerName }, isNewPlayer: true })
+    fresh.practiceMode = false
+    fresh.sessionStartedAt = Date.now()
+    setGs(fresh)
+    setPracticeEndOpen(false)
+    setEndPreviewOpen(false)
+    setQuarterSummary(null)
+    setEventQueue([])
+    setLossReason(null)
+    setSelectedDept(null)
+    setSelectedProject(null)
+    setSelectedActiveProject(null)
+    setQuarterProgress({ forecast: false, accept: false, staff: false })
+    setGameScreen('home')
+    play('fanfare')
+    showToast('The real game begins — Year 1, Quarter 1. Good luck!')
+  }, [gs.playerId, gs.playerName, showToast])
+
+  // ── Guided tour control ──────────────────────────────────────────
+  const startTour = useCallback(() => { setTourStep(0); setGameScreen('home'); setTourActive(true) }, [])
+  const endTour = useCallback(() => {
+    setTourActive(false)
+    setGameScreen('home')
+    try { localStorage.setItem(TOUR_DONE_KEY, '1') } catch {}
+  }, [])
+
+  // A brand-new player always gets the guided tour, even if a previous player
+  // on this browser already finished it. Clear the persisted flag on mount so
+  // the auto-start effect below can fire.
+  useEffect(() => {
+    if (gameSetupResult?.isNewPlayer) {
+      try { localStorage.removeItem(TOUR_DONE_KEY) } catch {}
+    }
+  }, [])
+
+  // Auto-start the tour once, the first time a player lands in practice mode.
+  useEffect(() => {
+    if (!gs.practiceMode) return
+    let done = false
+    try { done = localStorage.getItem(TOUR_DONE_KEY) === '1' } catch {}
+    if (!done) { const t = setTimeout(() => startTour(), 350); return () => clearTimeout(t) }
+  }, [gs.practiceMode, startTour])
+
+  // While the tour runs, follow each step's tab so its target element exists.
+  useEffect(() => {
+    if (!tourActive) return
+    const step = TOUR_STEPS[tourStep]
+    if (step && step.tab && TAB_TO_SCREEN[step.tab] && gameScreen !== step.tab) {
+      setGameScreen(step.tab)
+    }
+  }, [tourActive, tourStep, gameScreen])
+
   const handleRestart = useCallback(() => {
     try { localStorage.removeItem(DEMO_SAVE_KEY) } catch {}
     setGs(buildInitialGs({ player: gameSetupResult?.player, isNewPlayer: true }))
@@ -537,7 +653,7 @@ export default function GameContainer({ gameSetupResult }) {
       const next = { ...prev }
       if (eff.cash) {
         const sign = eff.cash > 0 ? '+' : '-'
-        pushFloat(sign + '' + Math.abs(eff.cash).toLocaleString() + ' Ħ cash', eff.cash > 0 ? 'positive' : 'negative')
+        pushFloat(sign + '' + '$' + Math.abs(eff.cash).toLocaleString() + ' cash', eff.cash > 0 ? 'positive' : 'negative')
         next.cash = prev.cash + eff.cash
       }
       if (eff.reputation) {
@@ -547,7 +663,7 @@ export default function GameContainer({ gameSetupResult }) {
       }
       if (eff.fixedExpenses) {
         const sign = eff.fixedExpenses > 0 ? '+' : '-'
-        pushFloat(sign + '' + Math.abs(eff.fixedExpenses).toLocaleString() + ' Ħ/qtr', eff.fixedExpenses > 0 ? 'negative' : 'positive')
+        pushFloat(sign + '' + '$' + Math.abs(eff.fixedExpenses).toLocaleString() + '/qtr', eff.fixedExpenses > 0 ? 'negative' : 'positive')
         next.recurringExpenses = Math.max(0, (prev.recurringExpenses || 0) + eff.fixedExpenses)
       }
       if (eff.staff && eff.staff.delta) {
@@ -567,19 +683,30 @@ export default function GameContainer({ gameSetupResult }) {
   const activeTab = tabForScreen(gameScreen)
   const quarterKey = gs.currentYear + '-' + gs.yearQuarter
 
+  // Derived HUD health signals (presentation only — no game-core change).
+  const hudBurn = computeFixedExpenses(gs.departments) + (gs.recurringExpenses || 0)
+  const hudRunway = hudBurn > 0 ? gs.cash / hudBurn : Infinity
+  const hudLastFlow = gs.lastResolution
+    ? (gs.lastResolution.revenueGained || 0)
+      - (gs.lastResolution.fixedExpenses || 0)
+      - (gs.lastResolution.recurringExpenses || 0)
+      - (gs.lastResolution.extraCostsAdded || 0)
+    : null
+  const hudHpTone =
+    (gs.cash < GAME_CONFIG.startingCash * 0.25 || hudRunway < 3) ? 'hp-low'
+    : (hudLastFlow != null && hudLastFlow < 0) ? 'hp-warn'
+    : ''
+
   return (
     <div className="game-shell">
       <div className="game-topbar">
         <div className="game-topbar__logo">
-          <HNILogo height={24} />
+          <HNILogo height={52} />
         </div>
-        <div className="hud-brand">HNI Way</div>
-        <div className="hud-level" title={'Round ' + gs.overallQuarter + ' of ' + GAME_CONFIG.totalQuarters}>
-          LVL {gs.overallQuarter}
+        <div className={"game-topbar__badge" + (gs.practiceMode ? " game-topbar__badge--practice" : "")} data-tour="quarter">
+          {gs.practiceMode ? "Q0 · Practice" : "Q" + gs.yearQuarter + " · Y" + gs.currentYear}
         </div>
-        <div className="game-topbar__badge">
-          Q{gs.yearQuarter} · Y{gs.currentYear}
-        </div>
+        <span data-tour="timer" style={{ display: "inline-flex" }}>
         <SessionTimer
           startedAt={gs.sessionStartedAt}
           totalSeconds={GAME_CONFIG.sessionMinutes * 60}
@@ -588,14 +715,15 @@ export default function GameContainer({ gameSetupResult }) {
           warnAtSeconds={120}
           stopped={gameScreen === 'final-report'}
         />
+        </span>
         <div className="hud-stats">
-          <div className="hud-stat">
+          <div className="hud-stat" data-tour="cash">
             <span className="hud-stat__label">Cash</span>
             <span className="hud-stat__value hud-stat__value--cash">
-              <AnimatedNumber value={gs.cash} /> Ħ
+              $<AnimatedNumber value={gs.cash} />
             </span>
           </div>
-          <div className="hud-stat">
+          <div className="hud-stat" data-tour="rep">
             <span className="hud-stat__label">Rep</span>
             <span className="hud-stat__value hud-stat__value--rep">
               <AnimatedNumber value={gs.reputation} />
@@ -604,11 +732,16 @@ export default function GameContainer({ gameSetupResult }) {
           <div className="hud-avatar" title={gs.playerName}>
             {(gs.playerName || 'P').split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()}
           </div>
+          {gs.practiceMode && (
+            <button className="hud-iconbtn hud-iconbtn--tour" onClick={() => { play('nav'); startTour() }} title="Replay tutorial" aria-label="Replay tutorial">
+              <span aria-hidden="true">?</span>
+            </button>
+          )}
           <button className="hud-iconbtn" onClick={() => { play('nav'); setShowLeaderboard(true) }} title="Leaderboard" aria-label="Leaderboard">
             <span aria-hidden="true">🏆</span>
           </button>
           <button className="hud-iconbtn" onClick={() => { play('nav'); setShowGlossary(true) }} title="Terms / Glossary" aria-label="Terms and glossary">
-            <span aria-hidden="true">?</span>
+            <span aria-hidden="true">📖</span>
           </button>
           <button className={'hud-iconbtn' + (muted ? '' : ' hud-iconbtn--active')} onClick={handleToggleMute} title={muted ? 'Unmute sounds' : 'Mute sounds'} aria-label="Toggle sound">
             <span aria-hidden="true">{muted ? '🔇' : '🔊'}</span>
@@ -619,8 +752,8 @@ export default function GameContainer({ gameSetupResult }) {
         </div>
       </div>
 
-      <div className="hud-xp">
-        <span className="hud-xp__label">XP · Reputation</span>
+      <div className="hud-xp" style={{ borderBottom: 'none', paddingBottom: 2 }} data-tour="xp">
+        <span className="hud-xp__label" style={{ minWidth: 110, textAlign: 'right' }}>XP · Reputation</span>
         <div className="hud-xp__track">
           <div
             className={
@@ -631,10 +764,26 @@ export default function GameContainer({ gameSetupResult }) {
             style={{ width: Math.max(2, Math.min(100, (gs.reputation / GAME_CONFIG.winReputationThreshold) * 100)) + '%' }}
           />
         </div>
-        <span className="hud-xp__value">
+        <span className="hud-xp__value" style={{ minWidth: 150 }}>
           {gs.reputation >= GAME_CONFIG.winReputationThreshold
             ? 'Leaderboard qualified ★'
             : gs.reputation + ' / ' + GAME_CONFIG.winReputationThreshold}
+        </span>
+      </div>
+
+      <div className="hud-xp" style={{ paddingTop: 2 }} data-tour="hp">
+        <span className="hud-xp__label" style={{ minWidth: 110, textAlign: 'right' }}>HP · Cash</span>
+        <div className="hud-xp__track">
+          <div
+            className={
+              'hud-xp__fill hud-xp__fill--hp' +
+              (hudHpTone ? ' hud-xp__fill--' + hudHpTone : '')
+            }
+            style={{ width: Math.max(2, Math.min(100, (gs.cash / GAME_CONFIG.startingCash) * 100)) + '%' }}
+          />
+        </div>
+        <span className="hud-xp__value" style={{ minWidth: 150 }}>
+          ${gs.cash.toLocaleString()}
         </span>
       </div>
 
@@ -768,6 +917,28 @@ export default function GameContainer({ gameSetupResult }) {
           gs={gs}
           summary={quarterSummary}
           onClose={() => setQuarterSummary(null)}
+        />
+      )}
+
+      <ConfirmDialog
+        open={practiceEndOpen}
+        title="Finish Quarter 0?"
+        body="You're about to end the practice round. Everything you did here (cash, hires, projects, reputation) resets, and the real game begins at Year 1, Quarter 1."
+        confirmLabel="Start the real game"
+        cancelLabel="Keep practising"
+        onConfirm={startRealGame}
+        onCancel={() => setPracticeEndOpen(false)}
+      />
+
+      {tourActive && (
+        <SpotlightTour
+          steps={TOUR_STEPS}
+          stepIndex={tourStep}
+          tabLabel={TAB_LABEL[TOUR_STEPS[tourStep]?.tab]}
+          onNext={() => setTourStep((i) => Math.min(i + 1, TOUR_STEPS.length - 1))}
+          onBack={() => setTourStep((i) => Math.max(i - 1, 0))}
+          onSkip={endTour}
+          onFinish={endTour}
         />
       )}
 

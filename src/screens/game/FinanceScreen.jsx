@@ -26,7 +26,7 @@ export default function FinanceScreen({ gs, onRequestEndQuarter }) {
         ]}
       />
 
-      <div className="card card--accent" style={{ marginBottom: 'var(--sp-6)' }}>
+      <div className="card card--accent" data-tour="finance-end" style={{ marginBottom: 'var(--sp-6)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--sp-4)' }}>
           <div>
             <div className="section-label">Quarter Center</div>
@@ -51,11 +51,11 @@ export default function FinanceScreen({ gs, onRequestEndQuarter }) {
             <div className="game-section-title" style={{ marginBottom: 'var(--sp-4)' }}>
               Quarter Entry
             </div>
-            <KpiRow label="Fixed Expenses (Staff)" value={'-' + fixedExpenses.toLocaleString() + ' Ħ'} />
+            <KpiRow label="Fixed Expenses (Staff)" value={'-' + '$' + fixedExpenses.toLocaleString() + ''} />
             <KpiRow label="Projects ending this quarter" value={endingThisQtr.length} />
-            <KpiRow label="Revenue if all deliver" value={'' + expectedRevenue.toLocaleString() + ' Ħ'} positive />
+            <KpiRow label="Revenue if all deliver" value={'' + '$' + expectedRevenue.toLocaleString() + ''} positive />
             {expectedExtraCosts > 0 && (
-              <KpiRow label="Overdue penalty risk" value={'-' + expectedExtraCosts.toLocaleString() + ' Ħ'} />
+              <KpiRow label="Overdue penalty risk" value={'-' + '$' + expectedExtraCosts.toLocaleString() + ''} />
             )}
           </div>
 
@@ -80,7 +80,7 @@ export default function FinanceScreen({ gs, onRequestEndQuarter }) {
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontFamily: 'var(--f-heading)', fontSize: 14, fontWeight: 700, color: proj.status === 'overdue' ? 'var(--c-error)' : 'var(--c-success)' }}>
-                      {proj.revenue.toLocaleString()} Ħ
+                      ${proj.revenue.toLocaleString()}
                     </div>
                   </div>
                 </div>
@@ -92,9 +92,9 @@ export default function FinanceScreen({ gs, onRequestEndQuarter }) {
             <div className="card" style={{ borderLeft: '4px solid var(--c-primary)' }}>
               <div className="game-section-title" style={{ marginBottom: 'var(--sp-3)' }}>Last Quarter Resolution</div>
               <ul style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13 }}>
-                <li>Fixed expenses paid: <strong>-{last.fixedExpenses.toLocaleString()} Ħ</strong></li>
-                {last.revenueGained > 0 && <li>Revenue collected: <strong style={{ color: 'var(--c-success)' }}>+{last.revenueGained.toLocaleString()} Ħ</strong></li>}
-                {last.extraCostsAdded > 0 && <li>Overdue penalties: <strong style={{ color: 'var(--c-error)' }}>-{last.extraCostsAdded.toLocaleString()} Ħ</strong></li>}
+                <li>Fixed expenses paid: <strong>-${last.fixedExpenses.toLocaleString()}</strong></li>
+                {last.revenueGained > 0 && <li>Revenue collected: <strong style={{ color: 'var(--c-success)' }}>+${last.revenueGained.toLocaleString()}</strong></li>}
+                {last.extraCostsAdded > 0 && <li>Overdue penalties: <strong style={{ color: 'var(--c-error)' }}>-${last.extraCostsAdded.toLocaleString()}</strong></li>}
                 {last.reputationDelta !== 0 && <li>Reputation change: <strong>{last.reputationDelta > 0 ? '+' : ''}{last.reputationDelta}</strong></li>}
                 {last.deliveredCodes?.length > 0 && <li>Delivered: {last.deliveredCodes.join(', ')}</li>}
                 {last.overdueCodes?.length > 0 && <li>Overdue: {last.overdueCodes.join(', ')}</li>}
@@ -108,11 +108,11 @@ export default function FinanceScreen({ gs, onRequestEndQuarter }) {
             <div className="game-section-title" style={{ marginBottom: 'var(--sp-4)' }}>
               Year {gs.currentYear} Summary Preview
             </div>
-            <KpiRow label="Total Revenue (YTD)" value={'' + gs.totalRevenue.toLocaleString() + ' Ħ'} positive />
-            <KpiRow label="Total Expenses (YTD)" value={'' + gs.totalCosts.toLocaleString() + ' Ħ'} />
-            <KpiRow label="Net Profit (YTD)" value={'' + gs.netProfit.toLocaleString() + ' Ħ'} highlight positive={gs.netProfit >= 0} />
+            <KpiRow label="Total Revenue (YTD)" value={'' + '$' + gs.totalRevenue.toLocaleString() + ''} positive />
+            <KpiRow label="Total Expenses (YTD)" value={'' + '$' + gs.totalCosts.toLocaleString() + ''} />
+            <KpiRow label="Net Profit (YTD)" value={'' + '$' + gs.netProfit.toLocaleString() + ''} highlight positive={gs.netProfit >= 0} />
             <KpiRow label="Reputation" value={gs.reputation} />
-            <KpiRow label="Current Cash" value={'' + gs.cash.toLocaleString() + ' Ħ'} positive />
+            <KpiRow label="Current Cash" value={'' + '$' + gs.cash.toLocaleString() + ''} positive />
           </div>
 
           <div className="card">

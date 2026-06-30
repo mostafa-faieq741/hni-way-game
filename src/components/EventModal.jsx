@@ -11,7 +11,7 @@ function formatEffect(effect = {}) {
   if (effect.cash) {
     const sign = effect.cash > 0 ? '+' : '-'
     rows.push({
-      text: sign + '' + Math.abs(effect.cash).toLocaleString() + ' Ħ cash',
+      text: sign + '' + '$' + Math.abs(effect.cash).toLocaleString() + ' cash',
       tone: effect.cash > 0 ? 'positive' : 'negative',
     })
   }
@@ -25,7 +25,7 @@ function formatEffect(effect = {}) {
   if (effect.fixedExpenses) {
     const sign = effect.fixedExpenses > 0 ? '+' : '-'
     rows.push({
-      text: sign + '' + Math.abs(effect.fixedExpenses).toLocaleString() + ' Ħ fixed expenses/qtr',
+      text: sign + '' + '$' + Math.abs(effect.fixedExpenses).toLocaleString() + ' fixed expenses/qtr',
       tone: 'negative',
     })
   }

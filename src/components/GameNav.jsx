@@ -24,6 +24,7 @@ export default function GameNav({ activeScreen, onNavigate }) {
         return (
           <button
             key={tab.id}
+            data-tour={'nav-' + tab.id}
             onClick={() => onNavigate(tab.id)}
             style={{
               display:        'flex',

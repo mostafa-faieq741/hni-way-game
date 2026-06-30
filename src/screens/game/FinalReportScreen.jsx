@@ -17,7 +17,7 @@ export default function FinalReportScreen({ gs, onRestart, lossReason = null }) 
   const completed = gs.overallQuarter >= GAME_CONFIG.totalQuarters
   const lost = !!lossReason
   const lossMessage = lossReason === 'cash'
-    ? 'Bankruptcy — your cash fell below ' + (GAME_CONFIG.loseCashFloor).toLocaleString() + ' Hanoon. The company could no longer operate.'
+    ? 'Bankruptcy — your cash fell below ' + '$' + (GAME_CONFIG.loseCashFloor).toLocaleString() + '. The company could no longer operate.'
     : lossReason === 'reputation'
       ? 'Reputation collapse — your reputation fell to ' + GAME_CONFIG.loseReputationFloor + '. Clients lost all confidence in the company.'
       : ''
@@ -85,12 +85,12 @@ export default function FinalReportScreen({ gs, onRestart, lossReason = null }) 
 
       {/* Core KPIs */}
       <div className="summary-kpi-grid" style={{ marginBottom: 'var(--sp-6)' }}>
-        <KpiCard label="Total Revenue" value={`${gs.totalRevenue.toLocaleString()} Ħ`} positive />
-        <KpiCard label="Total Expenses" value={`${gs.totalCosts.toLocaleString()} Ħ`} />
-        <KpiCard label="Total Profit" value={`${gs.netProfit.toLocaleString()} Ħ`} positive={gs.netProfit >= 0} negative={gs.netProfit < 0} />
+        <KpiCard label="Total Revenue" value={`$${gs.totalRevenue.toLocaleString()}`} positive />
+        <KpiCard label="Total Expenses" value={`$${gs.totalCosts.toLocaleString()}`} />
+        <KpiCard label="Total Profit" value={`$${gs.netProfit.toLocaleString()}`} positive={gs.netProfit >= 0} negative={gs.netProfit < 0} />
         <KpiCard label="Final Reputation" value={gs.reputation} positive={qualified} />
         <KpiCard label="Employees" value={totalEmployees} />
-        <KpiCard label="Final Cash" value={`${gs.cash.toLocaleString()} Ħ`} positive />
+        <KpiCard label="Final Cash" value={`$${gs.cash.toLocaleString()}`} positive />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--sp-5)', marginBottom: 'var(--sp-6)' }}>
@@ -109,7 +109,7 @@ export default function FinalReportScreen({ gs, onRestart, lossReason = null }) 
           <StatRow label="Active Departments" value={activeDepts.length} />
           <StatRow label="Total Departments Available" value={12} />
           <StatRow label="Most Used Department" value={mostUsedDept ? `${mostUsedDept.icon} ${mostUsedDept.name}` : '—'} />
-          {bestYear && <StatRow label="Best Year" value={`Year ${bestYear.year} (${bestYear.netProfit.toLocaleString()} Ħ)`} positive />}
+          {bestYear && <StatRow label="Best Year" value={`Year ${bestYear.year} ($${bestYear.netProfit.toLocaleString()})`} positive />}
         </div>
       </div>
 
@@ -150,7 +150,7 @@ export default function FinalReportScreen({ gs, onRestart, lossReason = null }) 
                 <div key={y.year} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>
                   <span style={{ fontFamily: 'var(--f-heading)', fontWeight: 700, color: 'var(--c-dark-grey)' }}>Year {y.year}</span>
                   <span style={{ color: 'var(--c-dark-grey)' }}>
-                    Net <strong style={{ color: y.netProfit >= 0 ? 'var(--c-success)' : 'var(--c-error)' }}>{y.netProfit.toLocaleString()} Ħ</strong>
+                    Net <strong style={{ color: y.netProfit >= 0 ? 'var(--c-success)' : 'var(--c-error)' }}>${y.netProfit.toLocaleString()}</strong>
                     <span style={{ color: '#8a6900' }}> · Rep {y.reputation}</span>
                   </span>
                 </div>
@@ -172,9 +172,10 @@ export default function FinalReportScreen({ gs, onRestart, lossReason = null }) 
           <button
             className="btn btn--primary btn--lg"
             onClick={onRestart}
-            style={{ minWidth: 240 }}
+            style={{ minWidth: 240, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
           >
-            ↺ Play Again
+            <span aria-hidden="true" style={{ fontSize: '1.1em', lineHeight: 1 }}>↺</span>
+            <span>Play Again</span>
           </button>
           <p style={{ fontSize: 12, color: 'var(--c-text-muted)', marginTop: 8 }}>
             Resets all progress and starts a new game from Year 1, Quarter 1.
@@ -189,7 +190,7 @@ export default function FinalReportScreen({ gs, onRestart, lossReason = null }) 
         </div>
         <p style={{ fontSize: 13, color: 'var(--c-text-muted)', maxWidth: 480, margin: '0 auto' }}>
           {qualified
-            ? `Your final net profit of ${gs.netProfit.toLocaleString()} Ħ will be ranked against other qualified players. Leaderboard rankings are determined by highest net profit among players with reputation above ${GAME_CONFIG.winReputationThreshold}.`
+            ? `Your final net profit of $${gs.netProfit.toLocaleString()} will be ranked against other qualified players. Leaderboard rankings are determined by highest net profit among players with reputation above ${GAME_CONFIG.winReputationThreshold}.`
             : `To qualify for the leaderboard, reputation must exceed ${GAME_CONFIG.winReputationThreshold}. Your final reputation was ${gs.reputation}. Try again — focus on on-time project delivery and protecting reputation.`}
         </p>
       </div>
