@@ -15,6 +15,7 @@ import auth        from './api/auth.js'
 import users       from './api/users.js'
 import progress    from './api/progress.js'
 import leaderboard from './api/leaderboard.js'
+import stats       from './api/stats.js'
 
 const app = express()
 app.use(cors())
@@ -34,6 +35,7 @@ app.post('/api/auth', wrap(auth))
 app.all('/api/users', wrap(users))
 app.all('/api/progress', wrap(progress))
 app.get('/api/leaderboard', wrap(leaderboard))
+app.get('/api/stats', wrap(stats))
 
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => console.log(`[api] HNI game backend on http://localhost:${PORT}`))

@@ -60,6 +60,9 @@ export async function saveProgress(playerId, snapshot) {
   catch { return null }
 }
 
+// ── Admin stats ─────────────────────────────────────────────────────────
+export async function fetchStats() { return (await req('/api/stats', { auth: true })).players }
+
 // ── Leaderboard ─────────────────────────────────────────────────────────
 export async function fetchLeaderboard() {
   try { return (await req('/api/leaderboard')).leaderboard || [] } catch { return [] }
