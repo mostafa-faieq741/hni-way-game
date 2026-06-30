@@ -10,7 +10,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 
 export default function SessionTimer({
-  playedSeconds = 0, totalSeconds, onExpire, onWarn, onPersist,
+  playedSeconds = 0, totalSeconds, onExpire, onWarn, onPersist, onFlush,
   warnAtSeconds = 120, stopped = false,
 }) {
   const usedRef = useRef(playedSeconds)
@@ -25,18 +25,21 @@ export default function SessionTimer({
       usedRef.current += 1
       const r = Math.max(0, totalSeconds - usedRef.current)
       setRemaining(r)
-      if (usedRef.current % 10 === 0) onPersist?.(usedRef.current)
+      if (usedRef.current % 5 === 0) onPersist?.(usedRef.current)
       if (r <= warnAtSeconds && r > 0 && !warnedRef.current) { warnedRef.current = true; onWarn?.(r) }
-      if (r <= 0 && !firedRef.current) { firedRef.current = true; onPersist?.(usedRef.current); onExpire?.() }
+      if (r <= 0 && !firedRef.current) { firedRef.current = true; onFlush?.(usedRef.current); onExpire?.() }
     }
     const id = setInterval(tick, 1000)
-    const flush = () => onPersist?.(usedRef.current)
+    // Synchronous, unload-safe save (sendBeacon) when the player leaves/closes.
+    const flush = () => onFlush?.(usedRef.current)
     window.addEventListener('pagehide', flush)
+    window.addEventListener('beforeunload', flush)
     document.addEventListener('visibilitychange', flush)
     return () => {
       clearInterval(id)
-      onPersist?.(usedRef.current)
+      onFlush?.(usedRef.current)
       window.removeEventListener('pagehide', flush)
+      window.removeEventListener('beforeunload', flush)
       document.removeEventListener('visibilitychange', flush)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

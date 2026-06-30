@@ -4,14 +4,14 @@
  *   POST { playerId, snapshot }  -> save game state
  */
 import { saveProgress, loadProgress } from '../lib/gamestate.js'
-import { tokenFromReq } from '../lib/auth.js'
+import { tokenFromReq, verifyToken } from '../lib/auth.js'
 
 function allowed(auth, playerId) {
   return auth && (auth.role === 'admin' || auth.sub === playerId)
 }
 
 export default async function handler(req, res) {
-  const auth = tokenFromReq(req)
+  const auth = tokenFromReq(req) || (req.body && req.body.token ? verifyToken(req.body.token) : null)
   try {
     if (req.method === 'GET') {
       const playerId = req.query.playerId

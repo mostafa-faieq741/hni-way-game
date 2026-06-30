@@ -30,7 +30,7 @@ import FinalReportScreen      from './FinalReportScreen.jsx'
 import { createDepartmentState } from '../../data/departments.js'
 import { GAME_CONFIG }            from '../../data/gameConfig.js'
 import { saveKeyFor }             from '../PlayerSetupScreen.jsx'
-import { saveProgress as serverSave } from '../../services/authClient.js'
+import { saveProgress as serverSave, getToken } from '../../services/authClient.js'
 import {
   MAX_ACTIVE_PROJECTS,
   makeActiveProject,
@@ -343,20 +343,7 @@ export default function GameContainer({ gameSetupResult }) {
   }, [eventQueue.length > 0 ? eventQueue[0] : null])
   useEffect(() => { saveToLocalStorage(gs) }, [gs])
 
-  // Capture the latest play time when the player hides or closes the tab, so
-  // the session clock resumes accurately (no time burned while away).
-  useEffect(() => {
-    const persist = () => {
-      try { saveToLocalStorage(gs) } catch {}
-      if (!gameSetupResult?.demoMode && gs.playerId && gs.playerId !== 'demo-001' && !gs.practiceMode) {
-        serverSave(gs.playerId, { ...buildSnapshot(gs), gameStatus: gameScreen === 'final-report' ? 'finished' : 'in_progress' })
-      }
-    }
-    const onVis = () => { if (document.hidden) persist() }
-    document.addEventListener('visibilitychange', onVis)
-    window.addEventListener('pagehide', persist)
-    return () => { document.removeEventListener('visibilitychange', onVis); window.removeEventListener('pagehide', persist) }
-  }, [gs, gameScreen, gameSetupResult])
+// (hide/close persistence handled by the SessionTimer onFlush beacon below)
 
   // Persist to the server (cross-device resume + leaderboard) for signed-in,
   // non-practice players. Debounced so we don't spam the API on every change.
@@ -529,6 +516,25 @@ export default function GameContainer({ gameSetupResult }) {
   const handleTimerPersist = useCallback((used) => {
     setGs((prev) => (prev.playedSeconds === used ? prev : { ...prev, playedSeconds: used }))
   }, [])
+
+  // Keep a live ref to game state for the synchronous unload save.
+  const gsRef = useRef(gs)
+  useEffect(() => { gsRef.current = gs }, [gs])
+
+  // Unload-safe flush: write localStorage synchronously and send a beacon to the
+  // server (survives the browser X / tab close, unlike fetch).
+  const handleTimerFlush = useCallback((used) => {
+    const prev = gsRef.current
+    const snap = { ...buildSnapshot(prev), playedSeconds: used }
+    try { localStorage.setItem(saveKeyFor(prev.playerId), JSON.stringify(snap)) } catch {}
+    if (!gameSetupResult?.demoMode && prev.playerId && prev.playerId !== 'demo-001' && !prev.practiceMode) {
+      try {
+        const body = JSON.stringify({ playerId: prev.playerId, token: getToken(), snapshot: { ...snap, gameStatus: 'in_progress' } })
+        navigator.sendBeacon('/api/progress', new Blob([body], { type: 'application/json' }))
+      } catch {}
+    }
+    setGs((p) => (p.playedSeconds === used ? p : { ...p, playedSeconds: used }))
+  }, [gameSetupResult])
 
   const handleAcceptProject = useCallback((template) => {
     setGs((prev) => {
@@ -758,6 +764,7 @@ export default function GameContainer({ gameSetupResult }) {
           onExpire={handleTimeUp}
           onWarn={handleTimeWarn}
           onPersist={handleTimerPersist}
+          onFlush={handleTimerFlush}
           warnAtSeconds={120}
           stopped={gameScreen === 'final-report'}
         />
