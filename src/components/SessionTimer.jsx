@@ -1,51 +1,46 @@
 /**
  * SessionTimer.jsx
- * Global play-time cap. Counts DOWN total elapsed game time from
- * `startedAt` and guarantees a single session never exceeds the limit
- * (default 30 minutes, set in GAME_CONFIG.sessionMinutes).
+ * Global play-time cap. Counts ACTUAL play time (only while the tab is visible),
+ * starting from the already-played seconds restored with the save. It reports
+ * progress via onPersist so the elapsed time is saved — closing the tab pauses
+ * the count, and it resumes from where it left off next time (no wall-clock burn).
  *
- * It does NOT end individual quarters. It fires `onWarn` once when the
- * remaining time first drops to `warnAtSeconds` (a "wrap up" heads-up), and
- * fires `onExpire` once at zero so the whole game ends gracefully at the
- * final report. Remaining time is derived from a stored timestamp, so the
- * cap (and the warning) hold even across a page reload.
+ * Fires onWarn once near the end and onExpire once at zero.
  */
-
 import React, { useEffect, useRef, useState } from 'react'
 
-export default function SessionTimer({ startedAt, totalSeconds, playedSeconds = 0, onExpire, onWarn, warnAtSeconds = 120, stopped = false }) {
-  // Remaining = total cap minus (time already played in prior sessions +
-  // time played since this session opened). Closing the tab stops the count;
-  // it resumes from the saved `playedSeconds` next time.
-  const compute = () => {
-    const started = startedAt || Date.now()
-    const sinceStart = Math.max(0, Math.floor((Date.now() - started) / 1000))
-    return Math.max(0, totalSeconds - ((playedSeconds || 0) + sinceStart))
-  }
-
-  const [remaining, setRemaining] = useState(compute)
+export default function SessionTimer({
+  playedSeconds = 0, totalSeconds, onExpire, onWarn, onPersist,
+  warnAtSeconds = 120, stopped = false,
+}) {
+  const usedRef = useRef(playedSeconds)
+  const [remaining, setRemaining] = useState(Math.max(0, totalSeconds - playedSeconds))
   const firedRef = useRef(false)
   const warnedRef = useRef(false)
 
   useEffect(() => {
     if (stopped) return
     const tick = () => {
-      const r = compute()
+      if (typeof document !== 'undefined' && document.hidden) return // pause in background
+      usedRef.current += 1
+      const r = Math.max(0, totalSeconds - usedRef.current)
       setRemaining(r)
-      if (r <= warnAtSeconds && r > 0 && !warnedRef.current) {
-        warnedRef.current = true
-        onWarn?.(r)
-      }
-      if (r <= 0 && !firedRef.current) {
-        firedRef.current = true
-        onExpire?.()
-      }
+      if (usedRef.current % 10 === 0) onPersist?.(usedRef.current)
+      if (r <= warnAtSeconds && r > 0 && !warnedRef.current) { warnedRef.current = true; onWarn?.(r) }
+      if (r <= 0 && !firedRef.current) { firedRef.current = true; onPersist?.(usedRef.current); onExpire?.() }
     }
-    tick()
     const id = setInterval(tick, 1000)
-    return () => clearInterval(id)
+    const flush = () => onPersist?.(usedRef.current)
+    window.addEventListener('pagehide', flush)
+    document.addEventListener('visibilitychange', flush)
+    return () => {
+      clearInterval(id)
+      onPersist?.(usedRef.current)
+      window.removeEventListener('pagehide', flush)
+      document.removeEventListener('visibilitychange', flush)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startedAt, totalSeconds, playedSeconds, stopped])
+  }, [stopped, totalSeconds])
 
   const mm = String(Math.floor(remaining / 60)).padStart(2, '0')
   const ss = String(remaining % 60).padStart(2, '0')
@@ -55,7 +50,7 @@ export default function SessionTimer({ startedAt, totalSeconds, playedSeconds = 
   return (
     <div
       className={'session-timer' + (urgent ? ' session-timer--urgent' : '') + (critical ? ' session-timer--critical' : '')}
-      title="Total time left in this session. The game ends automatically and shows your final report when this reaches zero."
+      title="Total play time left in this session. Time only counts while you are playing — it pauses when you leave and resumes next time."
       aria-label={'Session time remaining ' + mm + ':' + ss}
     >
       <span className="session-timer__icon" aria-hidden="true">

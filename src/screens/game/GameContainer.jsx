@@ -116,7 +116,7 @@ function buildSnapshot(state) {
     playerId: state.playerId,
     playerName: state.playerName,
     sessionStartedAt: state.sessionStartedAt,
-    playedSeconds: (state.playedSeconds || 0) + Math.max(0, Math.floor((Date.now() - (state.sessionStartedAt || Date.now())) / 1000)),
+    playedSeconds: state.playedSeconds || 0,
     practiceMode: state.practiceMode,
   }
 }
@@ -524,6 +524,12 @@ export default function GameContainer({ gameSetupResult }) {
   // Surface the wrap-up warning once, when ~2 minutes remain.
   const handleTimeWarn = useCallback(() => setShowTimeWarning(true), [])
 
+  // The session timer reports accumulated play time here; keep it in game state
+  // so every save persists it (and the cap resumes accurately next time).
+  const handleTimerPersist = useCallback((used) => {
+    setGs((prev) => (prev.playedSeconds === used ? prev : { ...prev, playedSeconds: used }))
+  }, [])
+
   const handleAcceptProject = useCallback((template) => {
     setGs((prev) => {
       if (prev.activeProjects.length >= MAX_ACTIVE_PROJECTS) {
@@ -747,11 +753,11 @@ export default function GameContainer({ gameSetupResult }) {
         </div>
         <span data-tour="timer" style={{ display: "inline-flex" }}>
         <SessionTimer
-          startedAt={gs.sessionStartedAt}
           playedSeconds={gs.playedSeconds || 0}
           totalSeconds={GAME_CONFIG.sessionMinutes * 60}
           onExpire={handleTimeUp}
           onWarn={handleTimeWarn}
+          onPersist={handleTimerPersist}
           warnAtSeconds={120}
           stopped={gameScreen === 'final-report'}
         />
