@@ -10,3 +10,8 @@ dist-game/
 # Backend runtime data (seed is committed)
 api/data/projects.json
 .env.local
+
+# dev-only runtime stores (production uses Supabase)
+api/data/accounts.json
+api/data/gamestate.json
+lib/_probe.txt

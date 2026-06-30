@@ -21,7 +21,7 @@ const MOCK_LEARNER_IDENTITY = {
  * TODO: Change to rely on env var when real SCORM is connected:
  *   export const isMockScormMode = import.meta.env.VITE_USE_REAL_API !== 'true'
  */
-export const isMockScormMode = true
+export const isMockScormMode = import.meta.env.VITE_DEV_MOCK_SCORM === 'true'
 
 /**
  * Returns a Promise that resolves with learner identity.

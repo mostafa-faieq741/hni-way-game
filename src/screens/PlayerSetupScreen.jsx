@@ -22,6 +22,7 @@
 import React, { useState, useEffect } from 'react'
 import Button from '../components/Button.jsx'
 import HNILogo from '../components/HNILogo.jsx'
+import { loadProgress } from '../services/authClient.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Demo mode config
@@ -39,47 +40,66 @@ const DEMO_PLAYER = {
   status:       'active',
 }
 
-/** localStorage key for demo game state */
-export const DEMO_SAVE_KEY = 'hni_demo_game_state'
+/** localStorage key for a player's saved game (per account). */
+export const saveKeyFor = (id) => 'hni_save_' + (id || 'demo-001')
+/** Back-compat default key. */
+export const DEMO_SAVE_KEY = saveKeyFor('demo-001')
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Component
 // ─────────────────────────────────────────────────────────────────────────────
 
-export default function PlayerSetupScreen({ onGameReady }) {
+export default function PlayerSetupScreen({ onGameReady, account }) {
   const [hasSavedProgress, setHasSavedProgress] = useState(false)
+  const [serverState, setServerState] = useState(null)
 
-  // Check if there is existing demo progress in localStorage
+  // The player identity comes from the signed-in account (falls back to demo).
+  const identity = account ? {
+    player_id:    account.player_id,
+    display_name: account.display_name || account.username,
+    email:        account.email || null,
+    learnerId:    account.player_id,
+    learnerName:  account.display_name || account.username,
+    status:       'active',
+  } : DEMO_PLAYER
+  const initials = (identity.display_name || 'P').split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase()
+
+  // Look for an existing saved game — the server (cross-device) first, then local.
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(DEMO_SAVE_KEY)
-      setHasSavedProgress(!!saved)
-    } catch {
-      setHasSavedProgress(false)
-    }
-  }, [])
+    let cancelled = false
+    ;(async () => {
+      let state = null
+      if (account?.player_id) state = await loadProgress(account.player_id)
+      let found = !!state
+      if (!found) { try { found = !!localStorage.getItem(saveKeyFor(identity.player_id)) } catch {} }
+      if (!cancelled) { setServerState(state); setHasSavedProgress(found) }
+    })()
+    return () => { cancelled = true }
+  }, [account?.player_id])
 
-  // Start or resume the demo game
+  // Start or resume the game
   const handleStartDemo = (forceNew = false) => {
     if (forceNew) {
-      try { localStorage.removeItem(DEMO_SAVE_KEY) } catch {}
+      try { localStorage.removeItem(saveKeyFor(identity.player_id)) } catch {}
     }
     const isNewPlayer = forceNew || !hasSavedProgress
     onGameReady({
-      player:      DEMO_PLAYER,
+      player:      identity,
       isNewPlayer,
-      demoMode:    true,
+      serverState: isNewPlayer ? null : serverState,
+      demoMode:    !account,
     })
   }
 
-  // Reset demo progress and start fresh
+  // Reset progress and start fresh
   const handleReset = () => {
-    try { localStorage.removeItem(DEMO_SAVE_KEY) } catch {}
+    try { localStorage.removeItem(saveKeyFor(identity.player_id)) } catch {}
     setHasSavedProgress(false)
     onGameReady({
-      player:      DEMO_PLAYER,
+      player:      identity,
       isNewPlayer: true,
-      demoMode:    true,
+      serverState: null,
+      demoMode:    !account,
     })
   }
 
@@ -132,10 +152,10 @@ export default function PlayerSetupScreen({ onGameReady }) {
 
             {/* Player identity badge */}
             <div style={styles.playerBadge}>
-              <span style={styles.badgeAvatar}>DL</span>
+              <span style={styles.badgeAvatar}>{initials}</span>
               <div>
-                <div style={styles.badgeName}>Demo Learner</div>
-                <div style={styles.badgeRole}>HNI Way Prototype Player</div>
+                <div style={styles.badgeName}>{identity.display_name}</div>
+                <div style={styles.badgeRole}>{account ? 'HNI Way Player' : 'HNI Way Prototype Player'}</div>
               </div>
             </div>
 

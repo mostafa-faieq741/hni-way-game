@@ -1,86 +1,94 @@
-import React from 'react'
+import React, { useState } from 'react'
 import HNILogo from '../components/HNILogo.jsx'
+import { login } from '../services/authClient.js'
 
 /**
- * SignInScreen
- * Entry screen. Two roles (no password — prototype):
- *  - player → the simulation (existing onboarding flow)
- *  - admin  → the dashboard & statistics only
+ * SignInScreen — username + password login.
+ * Admin signs in with the admin credentials (default admin/admin); players sign
+ * in with the account the admin created for them. Role comes back from the server.
+ *
+ * @prop {function} onSignedIn  – called with the account object on success
  */
-function RoleCard({ icon, title, desc, cta, onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        flex: 1, minWidth: 220, maxWidth: 260,
-        background: 'var(--c-surface)', border: '1px solid var(--c-border)',
-        borderRadius: 'var(--r-xl)', boxShadow: 'var(--sh-card)',
-        padding: '28px 24px', cursor: 'pointer', textAlign: 'center',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12,
-        transition: 'transform 120ms ease, border-color 120ms ease',
-      }}
-      onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.borderColor = 'var(--c-primary)' }}
-      onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.borderColor = 'var(--c-border)' }}
-    >
-      <div style={{
-        width: 56, height: 56, borderRadius: '50%', background: 'var(--c-primary-lt)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--c-primary)',
-      }}>
-        {icon}
-      </div>
-      <div style={{ fontFamily: 'var(--f-heading)', fontWeight: 800, fontSize: 18, color: 'var(--c-text)' }}>{title}</div>
-      <div style={{ fontSize: 13, color: 'var(--c-text-muted)', lineHeight: 1.5 }}>{desc}</div>
-      <span className="btn btn--primary btn--md" style={{ marginTop: 8, pointerEvents: 'none' }}>{cta}</span>
-    </button>
-  )
-}
+export default function SignInScreen({ onSignedIn }) {
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
 
-export default function SignInScreen({ onSelectRole }) {
+  const submit = async (e) => {
+    e.preventDefault()
+    if (busy) return
+    setError(null); setBusy(true)
+    try {
+      const account = await login(username.trim(), password)
+      onSignedIn?.(account)
+    } catch (err) {
+      setError(err.message || 'Sign in failed.')
+      setBusy(false)
+    }
+  }
+
   return (
     <main className="app-main">
       <div className="screen" style={{
         display: 'flex', flexDirection: 'column', alignItems: 'center',
-        justifyContent: 'center', minHeight: '100vh', gap: 28, textAlign: 'center',
+        justifyContent: 'center', minHeight: '100vh', gap: 24, textAlign: 'center',
       }}>
         <HNILogo height={44} />
 
         <div>
           <span className="section-label" style={{ color: 'var(--c-primary)' }}>Business Simulation</span>
-          <h1 style={{ fontFamily: 'var(--f-heading)', fontSize: 'clamp(28px, 4vw, 40px)', fontWeight: 800, margin: '8px 0 6px', color: 'var(--c-rich-black)' }}>
+          <h1 style={{ fontFamily: 'var(--f-heading)', fontSize: 'clamp(26px, 4vw, 38px)', fontWeight: 800, margin: '8px 0 6px', color: 'var(--c-rich-black)' }}>
             Sign in
           </h1>
-          <p style={{ color: 'var(--c-text-muted)', maxWidth: 440, margin: '0 auto', lineHeight: 1.6 }}>
-            Choose how you want to enter the HNI Way simulation.
+          <p style={{ color: 'var(--c-text-muted)', maxWidth: 420, margin: '0 auto', lineHeight: 1.6 }}>
+            Enter your username and password to play the HNI Way simulation.
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', justifyContent: 'center', width: '100%', maxWidth: 580 }}>
-          <RoleCard
-            title="Player"
-            desc="Play the simulation from the start and build your company."
-            cta="Enter as Player"
-            onClick={() => onSelectRole('player')}
-            icon={(
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M8 5v14l11-7z" />
-              </svg>
-            )}
-          />
-          <RoleCard
-            title="Admin"
-            desc="View the dashboard and player statistics only."
-            cta="Enter as Admin"
-            onClick={() => onSelectRole('admin')}
-            icon={(
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <line x1="18" y1="20" x2="18" y2="10" />
-                <line x1="12" y1="20" x2="12" y2="4" />
-                <line x1="6" y1="20" x2="6" y2="14" />
-              </svg>
-            )}
-          />
-        </div>
+        <form onSubmit={submit} style={{
+          width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 14,
+          background: 'var(--c-surface)', border: '1px solid var(--c-border)',
+          borderRadius: 'var(--r-xl)', boxShadow: 'var(--sh-card)', padding: '28px 24px',
+        }}>
+          <label style={{ textAlign: 'left', fontSize: 13, fontWeight: 700, color: 'var(--c-text)' }}>
+            Username
+            <input
+              autoFocus value={username} onChange={(e) => setUsername(e.target.value)}
+              autoCapitalize="none" autoCorrect="off" spellCheck={false}
+              style={inputStyle} placeholder="e.g. admin"
+            />
+          </label>
+          <label style={{ textAlign: 'left', fontSize: 13, fontWeight: 700, color: 'var(--c-text)' }}>
+            Password
+            <input
+              type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+              style={inputStyle} placeholder="••••••••"
+            />
+          </label>
+
+          {error && (
+            <div role="alert" style={{
+              fontSize: 13, color: '#b00020', background: '#fdecef',
+              border: '1px solid #f3b9c4', borderRadius: 'var(--r-md)', padding: '8px 12px', textAlign: 'left',
+            }}>{error}</div>
+          )}
+
+          <button type="submit" className="btn btn--primary btn--lg" disabled={busy} style={{ width: '100%', marginTop: 4 }}>
+            {busy ? 'Signing in…' : 'Sign in'}
+          </button>
+        </form>
+
+        <p style={{ fontSize: 12, color: 'var(--c-text-muted)', maxWidth: 360 }}>
+          Players: ask your administrator for an account. Admins create player accounts from the dashboard.
+        </p>
       </div>
     </main>
   )
+}
+
+const inputStyle = {
+  width: '100%', marginTop: 6, padding: '10px 12px',
+  border: '1px solid var(--c-border)', borderRadius: 'var(--r-md)',
+  background: 'var(--c-bg)', color: 'var(--c-text)', fontSize: 14, fontFamily: 'var(--f-body)',
 }

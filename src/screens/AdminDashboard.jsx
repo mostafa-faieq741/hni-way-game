@@ -3,6 +3,7 @@ import HNILogo from '../components/HNILogo.jsx'
 import Button from '../components/Button.jsx'
 import { getAllPlayers, getKpis, rankByNetProfit, getInitials, QUALIFY } from '../data/adminData.js'
 import ManageProjects from './admin/ManageProjects.jsx'
+import ManageUsers from './admin/ManageUsers.jsx'
 
 const fmtMoney = (n) => '$' + Math.round(n).toLocaleString()
 const fmtShort = (n) => {
@@ -98,7 +99,7 @@ export default function AdminDashboard({ onSignOut }) {
       <main className="app-main">
         <div className="screen" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-6)' }}>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {[['stats', 'Player Statistics'], ['projects', 'Manage Projects']].map(([key, label]) => (
+            {[['stats', 'Player Statistics'], ['projects', 'Manage Projects'], ['users', 'Add User']].map(([key, label]) => (
               <button key={key} onClick={() => setTab(key)}
                 className={'btn ' + (tab === key ? 'btn--primary' : 'btn--secondary')} style={{ fontSize: 13 }}>
                 {label}
@@ -107,6 +108,8 @@ export default function AdminDashboard({ onSignOut }) {
           </div>
 
           {tab === 'projects' && <ManageProjects />}
+
+          {tab === 'users' && <ManageUsers />}
 
           {tab === 'stats' && (<>
           <div>

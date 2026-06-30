@@ -3,7 +3,7 @@
  *   GET  -> list projects (?all=1 includes unpublished/drafts)
  *   POST -> create a project (validates input)
  */
-import * as projects from '../lib/projects.js'
+import * as projects from '../../lib/projects.js'
 
 export default async function handler(req, res) {
   try {

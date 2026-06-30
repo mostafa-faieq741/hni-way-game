@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import HNILogo from './components/HNILogo.jsx'
 import Navigation from './components/Navigation.jsx'
 import ThemeToggle from './components/ThemeToggle.jsx'
@@ -12,6 +12,9 @@ import BeforeYouPlayScreen from './screens/BeforeYouPlayScreen.jsx'
 import ReadyToStartScreen  from './screens/ReadyToStartScreen.jsx'
 import PlayerSetupScreen   from './screens/PlayerSetupScreen.jsx'
 import GameContainer       from './screens/game/GameContainer.jsx'
+import { signOut, lmsLogin } from './services/authClient.js'
+import { inLmsContext } from './services/identityMode.js'
+import { receiveScormLearnerIdentity } from './services/scormService.js'
 
 const SCREEN_TITLES = [
   null,
@@ -33,6 +36,19 @@ export default function App() {
 
   const [screenIndex, setScreenIndex] = useState(0)
   const [gameResult, setGameResult] = useState(null)
+  const [account, setAccount] = useState(null)
+
+  // LMS/SCORM launch: if embedded in an LMS, resolve the learner identity and
+  // jump straight into the game (no login form). Standalone launches ignore this.
+  useEffect(() => {
+    if (!inLmsContext()) return
+    let cancelled = false
+    receiveScormLearnerIdentity({ timeoutMs: 6000 })
+      .then((idn) => lmsLogin(idn.learnerId, idn.learnerName))
+      .then((acc) => { if (!cancelled) { setAccount(acc); setScreenIndex(0); setMode('player') } })
+      .catch(() => { /* no SCORM identity -> fall back to the sign-in screen */ })
+    return () => { cancelled = true }
+  }, [])
 
   const goNext = () => setScreenIndex((i) => Math.min(i + 1, TOTAL_SCREENS - 1))
   const goBack = () => setScreenIndex((i) => Math.max(i - 1, 1))
@@ -43,8 +59,9 @@ export default function App() {
     return (
       <div className="app">
         <SignInScreen
-          onSelectRole={(role) => {
-            if (role === 'admin') {
+          onSignedIn={(acc) => {
+            setAccount(acc)
+            if (acc.role === 'admin') {
               setMode('admin')
             } else {
               setScreenIndex(0)
@@ -60,7 +77,7 @@ export default function App() {
   if (mode === 'admin') {
     return (
       <div className="app">
-        <AdminDashboard onSignOut={() => setMode('signin')} />
+        <AdminDashboard onSignOut={() => { signOut(); setAccount(null); setMode('signin') }} />
       </div>
     )
   }
@@ -103,6 +120,7 @@ export default function App() {
       case 5:
         return (
           <PlayerSetupScreen
+            account={account}
             onGameReady={(result) => {
               setGameResult(result)
               goTo(6)

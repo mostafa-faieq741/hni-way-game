@@ -4,7 +4,7 @@
  *   PUT    -> update
  *   DELETE -> remove
  */
-import * as projects from '../lib/projects.js'
+import * as projects from '../../lib/projects.js'
 
 export default async function handler(req, res) {
   const { id } = req.query

@@ -29,7 +29,8 @@ import FinalReportScreen      from './FinalReportScreen.jsx'
 
 import { createDepartmentState } from '../../data/departments.js'
 import { GAME_CONFIG }            from '../../data/gameConfig.js'
-import { DEMO_SAVE_KEY }          from '../PlayerSetupScreen.jsx'
+import { saveKeyFor }             from '../PlayerSetupScreen.jsx'
+import { saveProgress as serverSave } from '../../services/authClient.js'
 import {
   MAX_ACTIVE_PROJECTS,
   makeActiveProject,
@@ -88,45 +89,48 @@ function tabForScreen(screen) {
   return 'home'
 }
 
+function buildSnapshot(state) {
+  return {
+    cash: state.cash,
+    reputation: state.reputation,
+    netProfit: state.netProfit,
+    totalRevenue: state.totalRevenue,
+    totalCosts: state.totalCosts,
+    overallQuarter: state.overallQuarter,
+    currentYear: state.currentYear,
+    yearQuarter: state.yearQuarter,
+    departments: state.departments,
+    activeProjects: state.activeProjects,
+    acceptedCount: state.acceptedCount,
+    rejectedCount: state.rejectedCount,
+    rejectedIds: state.rejectedIds,
+    quarterRejectedIds: state.quarterRejectedIds,
+    quarterBriefs: state.quarterBriefs,
+    completedProjects: state.completedProjects,
+    forecastPurchasedByYear: state.forecastPurchasedByYear,
+    yearSummaries: state.yearSummaries,
+    eventsTriggered: state.eventsTriggered,
+    recurringExpenses: state.recurringExpenses,
+    eventBag: state.eventBag,
+    lastResolution: state.lastResolution,
+    playerId: state.playerId,
+    playerName: state.playerName,
+    sessionStartedAt: state.sessionStartedAt,
+    practiceMode: state.practiceMode,
+  }
+}
+
 function saveToLocalStorage(state) {
   try {
-    const snapshot = {
-      cash: state.cash,
-      reputation: state.reputation,
-      netProfit: state.netProfit,
-      totalRevenue: state.totalRevenue,
-      totalCosts: state.totalCosts,
-      overallQuarter: state.overallQuarter,
-      currentYear: state.currentYear,
-      yearQuarter: state.yearQuarter,
-      departments: state.departments,
-      activeProjects: state.activeProjects,
-      acceptedCount: state.acceptedCount,
-      rejectedCount: state.rejectedCount,
-      rejectedIds: state.rejectedIds,
-      quarterRejectedIds: state.quarterRejectedIds,
-      quarterBriefs: state.quarterBriefs,
-      completedProjects: state.completedProjects,
-      forecastPurchasedByYear: state.forecastPurchasedByYear,
-      yearSummaries: state.yearSummaries,
-      eventsTriggered: state.eventsTriggered,
-      recurringExpenses: state.recurringExpenses,
-      eventBag: state.eventBag,
-      lastResolution: state.lastResolution,
-      playerId: state.playerId,
-      playerName: state.playerName,
-      sessionStartedAt: state.sessionStartedAt,
-      practiceMode: state.practiceMode,
-    }
-    localStorage.setItem(DEMO_SAVE_KEY, JSON.stringify(snapshot))
+    localStorage.setItem(saveKeyFor(state.playerId), JSON.stringify(buildSnapshot(state)))
   } catch (e) {
     console.warn('[GameContainer] save failed:', e)
   }
 }
 
-function loadFromLocalStorage() {
+function loadFromLocalStorage(playerId) {
   try {
-    const raw = localStorage.getItem(DEMO_SAVE_KEY)
+    const raw = localStorage.getItem(saveKeyFor(playerId))
     if (!raw) return null
     return JSON.parse(raw)
   } catch {
@@ -165,7 +169,7 @@ function buildInitialGs(setupResult) {
   }
   base.quarterBriefs = buildQuarterBriefs(base, [])
   if (!setupResult?.isNewPlayer) {
-    const saved = loadFromLocalStorage()
+    const saved = setupResult?.serverState || loadFromLocalStorage(base.playerId)
     if (saved) {
       const merged = { ...base, ...saved }
       // Migrate older saves (which stored brief IDs, not objects) and rebuild
@@ -333,6 +337,21 @@ export default function GameContainer({ gameSetupResult }) {
     if (eventQueue.length > 0) play('alert')
   }, [eventQueue.length > 0 ? eventQueue[0] : null])
   useEffect(() => { saveToLocalStorage(gs) }, [gs])
+
+  // Persist to the server (cross-device resume + leaderboard) for signed-in,
+  // non-practice players. Debounced so we don't spam the API on every change.
+  const serverSaveTimer = useRef(null)
+  useEffect(() => {
+    if (gameSetupResult?.demoMode || gs.practiceMode || !gs.playerId || gs.playerId === 'demo-001') return
+    clearTimeout(serverSaveTimer.current)
+    serverSaveTimer.current = setTimeout(() => {
+      serverSave(gs.playerId, {
+        ...buildSnapshot(gs),
+        gameStatus: gameScreen === 'final-report' ? 'finished' : 'in_progress',
+      })
+    }, 1500)
+    return () => clearTimeout(serverSaveTimer.current)
+  }, [gs, gameScreen, gameSetupResult])
 
   // Immediate-loss thresholds: bankruptcy or reputation collapse ends the game.
   useEffect(() => {
@@ -582,7 +601,7 @@ export default function GameContainer({ gameSetupResult }) {
 
   // End Quarter 0: wipe practice progress and begin the real game at Q1.
   const startRealGame = useCallback(() => {
-    try { localStorage.removeItem(DEMO_SAVE_KEY) } catch {}
+    try { localStorage.removeItem(saveKeyFor(gs.playerId)) } catch {}
     const fresh = buildInitialGs({ player: { player_id: gs.playerId, display_name: gs.playerName }, isNewPlayer: true })
     fresh.practiceMode = false
     fresh.sessionStartedAt = Date.now()
@@ -636,7 +655,7 @@ export default function GameContainer({ gameSetupResult }) {
   }, [tourActive, tourStep, gameScreen])
 
   const handleRestart = useCallback(() => {
-    try { localStorage.removeItem(DEMO_SAVE_KEY) } catch {}
+    try { localStorage.removeItem(saveKeyFor(gs.playerId)) } catch {}
     setGs(buildInitialGs({ player: gameSetupResult?.player, isNewPlayer: true }))
     setLossReason(null)
     setGameScreen('home')
