@@ -125,10 +125,12 @@ export default function PlayerSetupScreen({ onGameReady, account }) {
     <main className="app-main">
       <div className="player-setup-screen screen" style={styles.screen}>
 
-        {/* Demo mode banner */}
-        <div style={styles.demoBanner}>
-          🎮 Prototype Mode — Playable without TalentLMS or backend connection
-        </div>
+        {/* Prototype banner only when there is no real account (demo/dev). */}
+        {!account && (
+          <div style={styles.demoBanner}>
+            🎮 Prototype Mode — Playable without TalentLMS or backend connection
+          </div>
+        )}
 
         {/* Card */}
         <div style={styles.card}>
@@ -163,7 +165,7 @@ export default function PlayerSetupScreen({ onGameReady, account }) {
             {hasSavedProgress && (
               <div style={styles.progressNote}>
                 <span style={{ marginRight: 6 }}>💾</span>
-                Saved demo progress found. Click <strong>Resume</strong> to continue
+                Saved progress found. Click <strong>Resume</strong> to continue
                 where you left off, or start fresh below.
               </div>
             )}
@@ -175,7 +177,7 @@ export default function PlayerSetupScreen({ onGameReady, account }) {
               onClick={() => handleStartDemo(false)}
               style={{ width: '100%', marginTop: 8 }}
             >
-              {hasSavedProgress ? 'Resume Demo Game' : 'Start Demo Game'}
+              {hasSavedProgress ? (account ? 'Resume Game' : 'Resume Demo Game') : (account ? 'Start Game' : 'Start Demo Game')}
             </Button>
 
             {/* Secondary actions */}
@@ -186,7 +188,7 @@ export default function PlayerSetupScreen({ onGameReady, account }) {
                 onClick={() => handleStartDemo(true)}
                 style={{ width: '100%', marginTop: 8 }}
               >
-                Start New Demo Game
+                {account ? 'Start New Game' : 'Start New Demo Game'}
               </Button>
             )}
 
@@ -195,7 +197,7 @@ export default function PlayerSetupScreen({ onGameReady, account }) {
               style={styles.resetLink}
               title="Clears all saved demo progress and starts a fresh game"
             >
-              ↺ Reset Demo Progress
+              ↺ {account ? 'Reset Progress' : 'Reset Demo Progress'}
             </button>
 
             {/* Game info strip */}
@@ -220,8 +222,9 @@ export default function PlayerSetupScreen({ onGameReady, account }) {
 
         {/* Footer note */}
         <p style={styles.footerNote}>
-          Progress is saved locally in your browser.
-          {/* TODO: When TalentLMS is connected, progress will sync to your course account. */}
+          {account
+            ? 'Your progress is saved to your account — you can resume on any device.'
+            : 'Progress is saved locally in your browser.'}
         </p>
       </div>
     </main>

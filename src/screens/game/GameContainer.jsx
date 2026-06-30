@@ -663,7 +663,7 @@ export default function GameContainer({ gameSetupResult }) {
     setSelectedProject(null)
     setSelectedActiveProject(null)
     setCompletedYear(null)
-    showToast('Demo restarted. Good luck!')
+    showToast('Game restarted. Good luck!')
   }, [gameSetupResult, showToast])
 
   const handleEventResolve = useCallback((option) => {
