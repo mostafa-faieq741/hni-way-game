@@ -12,7 +12,7 @@ import BeforeYouPlayScreen from './screens/BeforeYouPlayScreen.jsx'
 import ReadyToStartScreen  from './screens/ReadyToStartScreen.jsx'
 import PlayerSetupScreen   from './screens/PlayerSetupScreen.jsx'
 import GameContainer       from './screens/game/GameContainer.jsx'
-import { signOut, lmsLogin } from './services/authClient.js'
+import { signOut, lmsLogin, loadProgress } from './services/authClient.js'
 import { inLmsContext } from './services/identityMode.js'
 import { receiveScormLearnerIdentity } from './services/scormService.js'
 
@@ -38,6 +38,25 @@ export default function App() {
   const [gameResult, setGameResult] = useState(null)
   const [account, setAccount] = useState(null)
 
+  // Enter the player flow. If the player already has a saved game, drop them
+  // straight back into it; otherwise run the onboarding and start fresh.
+  const enterAsPlayer = async (acc) => {
+    setAccount(acc)
+    let state = null
+    try { state = await loadProgress(acc.player_id) } catch {}
+    if (state) {
+      setGameResult({
+        player: { player_id: acc.player_id, display_name: acc.display_name || acc.username, email: acc.email || null },
+        isNewPlayer: false,
+        serverState: state,
+      })
+      setScreenIndex(6)
+    } else {
+      setScreenIndex(0)
+    }
+    setMode('player')
+  }
+
   // LMS/SCORM launch: if embedded in an LMS, resolve the learner identity and
   // jump straight into the game (no login form). Standalone launches ignore this.
   useEffect(() => {
@@ -45,7 +64,7 @@ export default function App() {
     let cancelled = false
     receiveScormLearnerIdentity({ timeoutMs: 6000 })
       .then((idn) => lmsLogin(idn.learnerId, idn.learnerName))
-      .then((acc) => { if (!cancelled) { setAccount(acc); setScreenIndex(0); setMode('player') } })
+      .then((acc) => { if (!cancelled) enterAsPlayer(acc) })
       .catch(() => { /* no SCORM identity -> fall back to the sign-in screen */ })
     return () => { cancelled = true }
   }, [])
@@ -60,13 +79,8 @@ export default function App() {
       <div className="app">
         <SignInScreen
           onSignedIn={(acc) => {
-            setAccount(acc)
-            if (acc.role === 'admin') {
-              setMode('admin')
-            } else {
-              setScreenIndex(0)
-              setMode('player')
-            }
+            if (acc.role === 'admin') { setAccount(acc); setMode('admin') }
+            else enterAsPlayer(acc)
           }}
         />
       </div>
